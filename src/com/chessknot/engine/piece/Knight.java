@@ -31,7 +31,7 @@ public class Knight extends Piece{
 
             if(BoardUtils.isValidTileCoordinate(candidateDestinationCoordinate)){
 
-                if(isFirstColumnExclusion(this.piecePosition,currentOffset) || isSecondColumnExclusion(this.piecePosition, currentOffset) || isSeventhColumnExclusion(this.piecePosition, currentOffset) || isEighthColumnExclusion(this.piecePosition, currentOffset)){
+                if(isFirstColumnExclusion(this.piecePosition, currentOffset) || isSecondColumnExclusion(this.piecePosition, currentOffset) || isSeventhColumnExclusion(this.piecePosition, currentOffset) || isEighthColumnExclusion(this.piecePosition, currentOffset)){
                     continue;
                 }
 
@@ -58,7 +58,7 @@ public class Knight extends Piece{
         return ImmutableList.copyOf(legalMoves);
     }
 
-    private static boolean isFirstColumnExclusion(int currentPosition,int currentCandidateOffset){
+    private static boolean isFirstColumnExclusion(int currentPosition, int currentCandidateOffset){
         return BoardUtils.FIRST_COLUMN[currentPosition] && ((currentCandidateOffset == -17) || (currentCandidateOffset == -10) || (currentCandidateOffset == 6) || (currentCandidateOffset == 15));
     }
 

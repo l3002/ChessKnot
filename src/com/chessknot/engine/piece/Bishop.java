@@ -16,14 +16,14 @@ public class Bishop extends Piece {
 
     private static final int[] CANDIDATE_MOVE_VECTOR_COORDINATES = { -9, -7 , 7 , 9 };
 
-    Bishop(final int piecePosition,final Alliance pieceAlliance) {
+    public Bishop(final int piecePosition,final Alliance pieceAlliance) {
         super(piecePosition, pieceAlliance);
     }
 
     @Override
     public Collection<Move> calculateLegalMoves(Board board) {
         
-        List<Move> legalMoves = new ArrayList<Move>();
+        final List<Move> legalMoves = new ArrayList<Move>();
 
         for(final int currentVectorCoordinate: CANDIDATE_MOVE_VECTOR_COORDINATES){
 
@@ -32,8 +32,6 @@ public class Bishop extends Piece {
             boolean legalPositionFlag = true;
 
             while(BoardUtils.isValidTileCoordinate(candidateDestinationCoordinate) && legalPositionFlag){
-                
-                legalPositionFlag = islegalPositionExclusion(candidateDestinationCoordinate);
 
                 if(isEighthColumnExclusion(this.piecePosition, currentVectorCoordinate) || isFirstColumnExclusion(this.piecePosition, currentVectorCoordinate)){
                     break;
@@ -59,6 +57,8 @@ public class Bishop extends Piece {
 
                     break;
                 }
+
+                legalPositionFlag = isNextLegalPositionExclusion(candidateDestinationCoordinate);
                 candidateDestinationCoordinate += currentVectorCoordinate;
             }
         }
@@ -68,13 +68,8 @@ public class Bishop extends Piece {
     private Collection<Move> ImmutableList(List<Move> legalMoves) {
         return null;
     }
-
-    @Override
-    public Alliance getPieceAlliance() {
-        return super.getPieceAlliance();
-    }
     
-    private static boolean islegalPositionExclusion(int candidateDestinationCoordinate){
+    private static boolean isNextLegalPositionExclusion(int candidateDestinationCoordinate){
         return !(BoardUtils.FIRST_COLUMN[candidateDestinationCoordinate] || BoardUtils.EIGHTH_COLUMN[candidateDestinationCoordinate]);
     }
     
