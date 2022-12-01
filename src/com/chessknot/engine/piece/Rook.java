@@ -18,7 +18,7 @@ public class Rook extends Piece{
     private static final int[] CANDIDATE_MOVE_VECTOR_COORDINATES = { -8 , -1 , 1, 8 };
 
     public Rook(final int piecePosition,final Alliance pieceAlliance) {
-        super(piecePosition, pieceAlliance);
+        super(PieceType.ROOK, piecePosition, pieceAlliance);
     }
 
     @Override
@@ -65,6 +65,16 @@ public class Rook extends Piece{
         }
         
         return ImmutableList.copyOf(legalMoves);
+    }
+
+    @Override
+    public Piece movePiece(Move move) {
+        return new Rook(move.getDestinationCoordinate(), move.getPiece().getPieceAlliance());
+    }
+
+    @Override
+    public String toString(){
+        return PieceType.ROOK.toString();
     }
 
     private boolean isFirstColumnExclusion(int currentPosition, int candidateVectorCoordinate) {

@@ -16,7 +16,7 @@ public class Pawn extends Piece{
     private static final int[] CANDIDATE_OFFSETS = { 8, 16};
 
     public Pawn(int piecePosition, Alliance pieceAlliance) {
-        super(piecePosition, pieceAlliance);
+        super(PieceType.PAWN, piecePosition, pieceAlliance);
     }
 
     @Override
@@ -73,6 +73,13 @@ public class Pawn extends Piece{
         return ImmutableList.copyOf(legalMoves);
     }
 
-    
-    
+    @Override
+    public Piece movePiece(Move move) {
+        return new Pawn(move.getDestinationCoordinate(), move.getPiece().getPieceAlliance());
+    }
+
+    @Override
+    public String toString(){
+        return PieceType.PAWN.toString();
+    }
 }

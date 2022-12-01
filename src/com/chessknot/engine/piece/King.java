@@ -18,7 +18,7 @@ public class King extends Piece{
     private static final int[] CANDIDATE_OFFSETS = {-9,-7,-1,1,7,9};
     
     public King(int piecePosition, Alliance pieceAlliance) {
-        super(piecePosition, pieceAlliance);
+        super(PieceType.KING, piecePosition, pieceAlliance);
     }
 
     @Override
@@ -58,6 +58,16 @@ public class King extends Piece{
 
         }
         return ImmutableList.copyOf(legalMoves);
+    }
+
+    @Override
+    public Piece movePiece(Move move) {
+        return new King(move.getDestinationCoordinate(), move.getPiece().getPieceAlliance());
+    }
+
+    @Override
+    public String toString(){
+        return PieceType.KING.toString();
     }
 
     private boolean isEighthColumnExclusion(int currentPosition, int currentCandidateOffset) {

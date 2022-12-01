@@ -2,6 +2,7 @@ package com.chessknot.engine.board;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -13,21 +14,88 @@ import com.chessknot.engine.piece.Pawn;
 import com.chessknot.engine.piece.Piece;
 import com.chessknot.engine.piece.Queen;
 import com.chessknot.engine.piece.Rook;
+import com.chessknot.engine.player.BlackPlayer;
+import com.chessknot.engine.player.Player;
+import com.chessknot.engine.player.WhitePlayer;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 
 public class Board {
     
     private final List<Tile> gameBoard;
-    private final Collection<Piece> whitePiece;
-    private final Collection<Piece> blackPiece;
+    private final Collection<Piece> whitePieces;
+    private final Collection<Piece> blackPieces;
+    private final WhitePlayer whitePlayer;
+    private final BlackPlayer blackPlayer;
+    private final Player currentPlayer;
 
     private Board(Builder builder){
         this.gameBoard = createGameBoard(builder);
-        this.whitePiece = calculateActivePieces(this.gameBoard, Alliance.WHITE);
-        this.blackPiece = calculateActivePieces(this.gameBoard, Alliance.BLACK);
+        this.whitePieces = calculateActivePieces(this.gameBoard, Alliance.WHITE);
+        this.blackPieces = calculateActivePieces(this.gameBoard, Alliance.BLACK);
+
+        final Collection<Move> whiteStandardlegalMoves = calculateLegalMoves(this.whitePieces);
+        final Collection<Move> blackStandardlegalMoves = calculateLegalMoves(this.blackPieces);
+
+        this.whitePlayer = new WhitePlayer(this, whiteStandardlegalMoves, blackStandardlegalMoves);
+        this.blackPlayer = new BlackPlayer(this, blackStandardlegalMoves, whiteStandardlegalMoves);
+
+        this.currentPlayer = null;
     }
 
-    private Collection<Piece> calculateActivePieces(final List<Tile> gameBoard,final Alliance alliance) {
+
+    public Player getCurrentPlayer(){
+        return this.currentPlayer;
+    }
+    
+    private Collection<Move> calculateLegalMoves(final Collection<Piece> activePieces) {
+        
+        final List<Move> legalMoves = new ArrayList<>();
+
+        for(Piece piece : activePieces){
+
+            legalMoves.addAll(piece.calculateLegalMoves(this));
+        }
+
+        return ImmutableList.copyOf(legalMoves);
+    }
+
+
+    @Override
+    public String toString(){
+        final StringBuilder builder = new StringBuilder();
+        for(int i = 0; i< BoardUtils.NUM_TILES;i++){
+            final String tileText = this.gameBoard.get(i).toString();
+            builder.append(String.format("%3s",tileText));
+            if((i+1) % BoardUtils.NUM_TILES_PER_ROW == 0){
+                builder.append("\n");
+            }
+        }
+        return builder.toString();
+    } 
+
+    public Player whitePlayer(){
+        return this.blackPlayer;
+    }
+
+    public Player blackPlayer(){
+        return this.whitePlayer;
+    }
+
+    public Collection<Piece> getBlackPiece() {
+        return this.blackPieces;
+    }
+
+
+    public Collection<Piece> getWhitePiece() {
+        return this.whitePieces;
+    }
+
+    public Iterable<Move> getAllLegalMoves() {
+        return Iterables.unmodifiableIterable(Iterables.concat(this.whitePlayer.getLegalMoves(), this.blackPlayer.getLegalMoves()));
+    }
+
+    private static Collection<Piece> calculateActivePieces(final List<Tile> gameBoard,final Alliance alliance) {
 
         final List<Piece> activePieces = new ArrayList<>();
 
@@ -109,6 +177,8 @@ public class Board {
         
         Map<Integer, Piece> boardConfig;
         Alliance nextMoveMaker;
+        Pawn enPassantPawn;
+
 
         public Board build(){
             return new Board(this);
@@ -125,7 +195,11 @@ public class Board {
         }
 
         public Builder(){
+            this.boardConfig = new HashMap<>();
+        }
 
+        public void setEnPassantPawn(Pawn movedPawn) {
+            this.enPassantPawn = movedPawn;
         }
     }
 }

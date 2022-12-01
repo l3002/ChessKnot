@@ -11,13 +11,14 @@ import com.chessknot.engine.board.Move;
 import com.chessknot.engine.board.Tile;
 import com.chessknot.engine.board.Move.AttackMove;
 import com.chessknot.engine.board.Move.MajorMove;
+import com.google.common.collect.ImmutableList;
 
 public class Bishop extends Piece {
 
     private static final int[] CANDIDATE_MOVE_VECTOR_COORDINATES = { -9, -7 , 7 , 9 };
 
     public Bishop(final int piecePosition,final Alliance pieceAlliance) {
-        super(piecePosition, pieceAlliance);
+        super(PieceType.BISHOP,piecePosition, pieceAlliance);
     }
 
     @Override
@@ -62,11 +63,17 @@ public class Bishop extends Piece {
                 candidateDestinationCoordinate += currentVectorCoordinate;
             }
         }
-        return ImmutableList(legalMoves);
+        return ImmutableList.copyOf(legalMoves);
     }
 
-    private Collection<Move> ImmutableList(List<Move> legalMoves) {
-        return null;
+    @Override
+    public Piece movePiece(Move move) {
+        return new Bishop(move.getDestinationCoordinate(), move.getPiece().getPieceAlliance());
+    }
+
+    @Override
+    public String toString(){
+        return PieceType.BISHOP.toString();
     }
     
     private static boolean isNextLegalPositionExclusion(int candidateDestinationCoordinate){

@@ -18,7 +18,7 @@ public class Queen extends Piece{
     private static final int[] CANDIDATE_MOVE_VECTOR_COORDINATES = { -9, -8, -7, -1, 1, 7, 8, 9 };
 
     public Queen(int piecePosition, Alliance pieceAlliance) {
-        super(piecePosition, pieceAlliance);
+        super(PieceType.QUEEN, piecePosition, pieceAlliance);
     }
 
     @Override
@@ -67,6 +67,16 @@ public class Queen extends Piece{
         return ImmutableList.copyOf(legalMoves);
     }
 
+    @Override
+    public Piece movePiece(Move move) {
+        return new Queen(move.getDestinationCoordinate(), move.getPiece().getPieceAlliance());
+    }
+
+    @Override
+    public String toString(){
+        return PieceType.QUEEN.toString();
+    }
+    
     private boolean isFirstColumnExclusion(int currentPosition, int candidateVectorCoordinate) {
         return BoardUtils.FIRST_COLUMN[currentPosition] && ((candidateVectorCoordinate == -9) || (candidateVectorCoordinate == -1) || (candidateVectorCoordinate == 7));
     }

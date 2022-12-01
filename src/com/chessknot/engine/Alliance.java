@@ -1,5 +1,9 @@
 package com.chessknot.engine;
 
+import com.chessknot.engine.player.BlackPlayer;
+import com.chessknot.engine.player.Player;
+import com.chessknot.engine.player.WhitePlayer;
+
 public enum Alliance {
     BLACK {
         @Override
@@ -15,6 +19,11 @@ public enum Alliance {
         @Override
         public boolean isWhite() {
             return false;
+        }
+
+        @Override
+        public Player choosePlayer(WhitePlayer whitePlayer, BlackPlayer blackPlayer) {
+            return blackPlayer;
         }
     },
     WHITE {
@@ -32,9 +41,15 @@ public enum Alliance {
         public boolean isWhite() {
             return true;
         }
+
+        @Override
+        public Player choosePlayer(WhitePlayer whitePlayer, BlackPlayer blackPlayer) {
+            return whitePlayer;
+        }
     };
 
     public abstract int getDirection();
     public abstract boolean isBlack();
     public abstract boolean isWhite();
+    public abstract Player choosePlayer(WhitePlayer whitePlayer, BlackPlayer blackPlayer);
 }
