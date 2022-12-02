@@ -1,36 +1,55 @@
 package com.chessknot.gui;
 
+import javax.swing.ImageIcon;
 import javax.swing.JFrame;
+import javax.swing.JLabel;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
+import javax.swing.WindowConstants;
 
+import com.chessknot.engine.board.Board;
 import com.chessknot.engine.board.BoardUtils;
+import com.chessknot.engine.board.Tile;
+import com.chessknot.engine.piece.Piece;
+
+import static javax.swing.SwingUtilities.isLeftMouseButton;
+import static javax.swing.SwingUtilities.isRightMouseButton;
 
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 import java.awt.GridLayout;
 import java.awt.GridBagLayout;
 import java.awt.Color;
+import java.awt.image.BufferedImage;
+import javax.imageio.ImageIO;
 import java.util.ArrayList;
 import java.util.List;
+
+import java.io.File;
+import java.io.IOException;
 
 public class Table {
 
     private JFrame gameFrame;
     private final BoardPanel boardPanel;
+    private final Board chessBoard;
 
-    public final static Dimension OUTER_DIMENSION = new Dimension(600,600);
+    private Tile sourceTile;
+    private Tile destinationTile;
+    private Piece humanMovedPiece;
 
-    public static final Dimension BOARD_PANEL_DIMENSION = new Dimension(400, 400);
-
-    public static final Dimension TILE_PANEL_DIMENSION = new Dimension(10,10);
+    private final static Dimension OUTER_DIMENSION = new Dimension(600,600);
+    private static final Dimension BOARD_PANEL_DIMENSION = new Dimension(400, 400);
+    private static final Dimension TILE_PANEL_DIMENSION = new Dimension(10,10);
+    private static final String defaultIconPath = "icon/";
 
     private final Color lightTileColor = Color.decode("#FFFACD");
-
     private final Color darkTileColor = Color.decode("#593E1A");
 
     public Table(){
@@ -39,9 +58,11 @@ public class Table {
         final JMenuBar tableMenuBar = createMenuBar();
         this.gameFrame.setJMenuBar(tableMenuBar);
         this.gameFrame.setSize(OUTER_DIMENSION);
-        this.gameFrame.setVisible(true);
+        this.gameFrame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+        this.chessBoard = Board.createStandardBoard();
         this.boardPanel = new BoardPanel();
         this.gameFrame.add(this.boardPanel, BorderLayout.CENTER);
+        this.gameFrame.setVisible(true);
     }
 
     private JMenuBar createMenuBar() {
@@ -104,14 +125,72 @@ public class Table {
             this.tileId = tileId;
             setPreferredSize(TILE_PANEL_DIMENSION);
             assignTileColor();
+            assignTilePieceIcon(chessBoard);
+
+            addMouseListener(new MouseListener(){
+
+                @Override
+                public void mouseClicked(MouseEvent e) {
+
+                    if(isLeftMouseButton(e)){
+                        if(sourceTile == null){
+                            sourceTile = chessBoard.getTile(tileId);
+                            humanMovedPiece = sourceTile.getPiece();
+                            if(humanMovedPiece == null){
+                                sourceTile = null;
+                            }
+                        }
+                        else{
+                            
+                        }
+                    }
+                    else if(isRightMouseButton(e)){
+                        
+                    }
+                }
+
+                @Override
+                public void mousePressed(MouseEvent e) {
+                    
+                }
+
+                @Override
+                public void mouseReleased(MouseEvent e) {
+                    
+                }
+
+                @Override
+                public void mouseEntered(MouseEvent e) {
+                    
+                }
+
+                @Override
+                public void mouseExited(MouseEvent e) {
+                    
+                }
+
+            });
             validate();
         }
 
+        private void assignTilePieceIcon(final Board board){
+            this.removeAll();
+            if(!board.getTile(this.tileId).isEmptyTile()){
+                try{
+                    final BufferedImage image = ImageIO.read(new File(defaultIconPath + board.getTile(this.tileId).getPiece().getPieceAlliance().toString().substring(0,1) + board.getTile(this.tileId).getPiece().toString() + ".png"));
+                    add(new JLabel(new ImageIcon(image)));
+                }
+                catch (IOException e){
+                    e.printStackTrace();
+                }
+            }
+        }
+
         private void assignTileColor() {
-            if(BoardUtils.FIRST_ROW[tileId] || BoardUtils.THIRD_ROW[tileId] || BoardUtils.FIFTH_ROW[tileId] || BoardUtils.SEVENTH_ROW[tileId]){
+            if(BoardUtils.EIGHTH_RANK[tileId] || BoardUtils.SIXTH_RANK[tileId] || BoardUtils.FOURTH_RANK[tileId] || BoardUtils.SECOND_RANK[tileId]){
                 setBackground(this.tileId % 2 == 0 ? lightTileColor : darkTileColor);
             }
-            else if(BoardUtils.SECOND_ROW[tileId] || BoardUtils.FOURTH_ROW[tileId] || BoardUtils.SIXTH_ROW[tileId] || BoardUtils.EIGHTH_ROW[tileId]){
+            else if(BoardUtils.SEVENTH_RANK[tileId] || BoardUtils.FIFTH_RANK[tileId] || BoardUtils.THIRD_RANK[tileId] || BoardUtils.FIRST_RANK[tileId]){
                 setBackground(this.tileId % 2 != 0 ? lightTileColor : darkTileColor);
             }
         }

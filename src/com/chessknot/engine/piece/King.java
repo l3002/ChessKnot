@@ -44,7 +44,6 @@ public class King extends Piece{
 
                 }
                 else{
-                    //TODO 
                     final Piece pieceAtDestination = candidateDestinationTile.getPiece();
                     final Alliance destinationPieceAlliance = pieceAtDestination.getPieceAlliance();
 

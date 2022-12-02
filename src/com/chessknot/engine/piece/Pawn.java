@@ -35,7 +35,7 @@ public class Pawn extends Piece{
                     //TODO more here : (pawn promotion)
                     legalMoves.add(new MajorMove(board, this, candidateDestinationCoordinate));
                 }
-                else if(currentCandidateOffset == 16 && isFirstMove() && ((BoardUtils.SECOND_ROW[candidateDestinationCoordinate] && this.pieceAlliance.isBlack()) || (BoardUtils.SEVENTH_ROW[candidateDestinationCoordinate] && this.pieceAlliance.isWhite()))){
+                else if(currentCandidateOffset == 16 && isFirstMove() && ((BoardUtils.SEVENTH_RANK[candidateDestinationCoordinate] && this.pieceAlliance.isBlack()) || (BoardUtils.SECOND_RANK[candidateDestinationCoordinate] && this.pieceAlliance.isWhite()))){
 
                     final int behindCandidateDestinationCoordinate = this.piecePosition + (this.getPieceAlliance().getDirection() * 8);
                     
