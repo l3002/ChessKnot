@@ -1,18 +1,23 @@
-## Getting Started
+## ChessKnot
 
-Welcome to the VS Code Java world. Here is a guideline to help you get started to write Java code in Visual Studio Code.
+ChessKnot is a Desktop-based Chess Application with a in-built companion to play with.
+
+It uses MiniMax Algorithm from the Game Theory to calculate best potential moves when the chess companion is activated.
+
+Additionally, It also provides several features like Board Flip, 
+Highlight Legal Moves etc.
 
 ## Folder Structure
 
 The workspace contains two folders by default, where:
 
-- `src`: the folder to maintain sources
-- `lib`: the folder to maintain dependencies
+- `src`: the src folder maintains source code
+- `icon`: the icon folder maintains icons used in GUI.
 
-Meanwhile, the compiled output files will be generated in the `bin` folder by default.
-
-> If you want to customize the folder structure, open `.vscode/settings.json` and update the related settings there.
+>Note: The binaries have not been included in this repository. If you want to execute the program compile it first with the following command.
+>
+>`mvn clean compile assembly:single`
 
 ## Dependency Management
 
-The `JAVA PROJECTS` view allows you to manage your dependencies. More details can be found [here](https://github.com/microsoft/vscode-java-dependency#manage-dependencies).
+Apache Maven is used for Dependency Management in this project and all the dependencies have been added to the pom.xml file.
