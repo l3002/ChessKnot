@@ -14,11 +14,11 @@ public abstract class Piece {
     protected final boolean isFirstMove;
     private int cachedHashCode;
 
-    Piece(final PieceType pieceType,final int piecePosition,final Alliance pieceAlliance){
+    Piece(final PieceType pieceType,final int piecePosition,final Alliance pieceAlliance,final boolean isFirstMove){
         this.piecePosition = piecePosition;
         this.pieceAlliance = pieceAlliance;
         this.pieceType = pieceType;
-        this.isFirstMove = false;
+        this.isFirstMove = isFirstMove;
         this.cachedHashCode = createHashCode();
     }
 
@@ -71,27 +71,29 @@ public abstract class Piece {
 
     public enum PieceType{
         
-        PAWN("P"),
-        KNIGHT("N"),
-        BISHOP("B"),
-        ROOK("R") {
+        PAWN("P",1),
+        KNIGHT("N",3),
+        BISHOP("B",3),
+        ROOK("R",5) {
             @Override
             public boolean isRook() {
                 return true;
             }
         },
-        KING("K") {
+        KING("K",10) {
             @Override
             public boolean isKing() {
                 return true;
             }
         },
-        QUEEN("Q");
+        QUEEN("Q",9);
 
         private String pieceType;
+        private int pieceValue;
 
-        PieceType(final String pieceType){
+        PieceType(final String pieceType,final int pieceValue){
             this.pieceType = pieceType;
+            this.pieceValue = pieceValue;
         }
 
         @Override
@@ -105,6 +107,10 @@ public abstract class Piece {
 
         public boolean isRook(){
             return false;
+        }
+
+        public int getPieceValue(){
+            return this.pieceValue;
         }
     }
 }
