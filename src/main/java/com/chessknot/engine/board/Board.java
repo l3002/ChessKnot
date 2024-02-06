@@ -28,11 +28,13 @@ public class Board {
     private final WhitePlayer whitePlayer;
     private final BlackPlayer blackPlayer;
     private final Player currentPlayer;
+    private final Pawn enPassantPawn;
 
     private Board(Builder builder){
         this.gameBoard = createGameBoard(builder);
         this.whitePieces = calculateActivePieces(this.gameBoard, Alliance.WHITE);
         this.blackPieces = calculateActivePieces(this.gameBoard, Alliance.BLACK);
+        this.enPassantPawn = builder.enPassantPawn;
 
         final Collection<Move> whiteStandardlegalMoves = calculateLegalMoves(this.whitePieces);
         final Collection<Move> blackStandardlegalMoves = calculateLegalMoves(this.blackPieces);
@@ -40,9 +42,12 @@ public class Board {
         this.whitePlayer = new WhitePlayer(this, whiteStandardlegalMoves, blackStandardlegalMoves);
         this.blackPlayer = new BlackPlayer(this, blackStandardlegalMoves, whiteStandardlegalMoves);
 
-        this.currentPlayer = null;
+        this.currentPlayer = builder.nextMoveMaker.choosePlayer(whitePlayer, blackPlayer);
     }
 
+    public Pawn getEnPassantPawn() {
+        return this.enPassantPawn;
+    }
 
     public Player getCurrentPlayer(){
         return this.currentPlayer;
@@ -75,11 +80,11 @@ public class Board {
     } 
 
     public Player whitePlayer(){
-        return this.blackPlayer;
+        return this.whitePlayer;
     }
 
     public Player blackPlayer(){
-        return this.whitePlayer;
+        return this.blackPlayer;
     }
 
     public Collection<Piece> getBlackPiece() {
@@ -126,6 +131,15 @@ public class Board {
 
     public Tile getTile(final int tileCoordinate){
         return this.gameBoard.get(tileCoordinate);
+    }
+
+    public static Board createOnlyKingsBoard(){
+        final Builder builder = new Builder();
+        builder.setBoardConfig(new King(BoardUtils.getCoordinateAtPosition("a1"), Alliance.WHITE));
+        builder.setBoardConfig(new Queen(BoardUtils.getCoordinateAtPosition("d1"), Alliance.WHITE));
+        builder.setBoardConfig(new King(BoardUtils.getCoordinateAtPosition("h8"), Alliance.BLACK));
+        builder.setNextMoveMaker(Alliance.WHITE);
+        return builder.build();
     }
 
     public static Board createStandardBoard(){
