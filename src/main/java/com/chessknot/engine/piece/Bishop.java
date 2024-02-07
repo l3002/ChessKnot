@@ -9,7 +9,7 @@ import com.chessknot.engine.board.Board;
 import com.chessknot.engine.board.BoardUtils;
 import com.chessknot.engine.board.Move;
 import com.chessknot.engine.board.Tile;
-import com.chessknot.engine.board.Move.AttackMove;
+import com.chessknot.engine.board.Move.MajorAttackMove;
 import com.chessknot.engine.board.Move.MajorMove;
 import com.google.common.collect.ImmutableList;
 
@@ -18,7 +18,11 @@ public class Bishop extends Piece {
     private static final int[] CANDIDATE_MOVE_VECTOR_COORDINATES = { -9, -7 , 7 , 9 };
 
     public Bishop(final int piecePosition,final Alliance pieceAlliance) {
-        super(PieceType.BISHOP,piecePosition, pieceAlliance);
+        super(PieceType.BISHOP,piecePosition, pieceAlliance,true);
+    }
+
+    public Bishop(final int piecePosition, final Alliance pieceAlliance, final boolean isFirstMove){
+        super(PieceType.BISHOP, piecePosition, pieceAlliance, isFirstMove);
     }
 
     @Override
@@ -52,7 +56,7 @@ public class Bishop extends Piece {
 
                     if(destinationPieceAlliance != this.pieceAlliance){
 
-                        legalMoves.add(new AttackMove(board,this,candidateDestinationCoordinate,pieceAtDestination));
+                        legalMoves.add(new MajorAttackMove(board,this,candidateDestinationCoordinate,pieceAtDestination));
 
                     }
 
