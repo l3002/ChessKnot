@@ -9,16 +9,20 @@ import com.chessknot.engine.board.Board;
 import com.chessknot.engine.board.BoardUtils;
 import com.chessknot.engine.board.Move;
 import com.chessknot.engine.board.Tile;
-import com.chessknot.engine.board.Move.AttackMove;
+import com.chessknot.engine.board.Move.MajorAttackMove;
 import com.chessknot.engine.board.Move.MajorMove;
 import com.google.common.collect.ImmutableList;
 
 public class King extends Piece{
 
-    private static final int[] CANDIDATE_OFFSETS = {-9,-7,-1,1,7,9};
+    private static final int[] CANDIDATE_OFFSETS = {-9, -8, -7 , -1 , 1 , 7, 8 , 9};
     
     public King(int piecePosition, Alliance pieceAlliance) {
-        super(PieceType.KING, piecePosition, pieceAlliance);
+        super(PieceType.KING, piecePosition, pieceAlliance, true);
+    }
+
+    public King(final int piecePosition, final Alliance pieceAlliance, final boolean isFirstMove){
+        super(PieceType.KING, piecePosition, pieceAlliance, isFirstMove);
     }
 
     @Override
@@ -49,7 +53,7 @@ public class King extends Piece{
 
                     if(destinationPieceAlliance != this.pieceAlliance){
 
-                        legalMoves.add(new AttackMove(board,this,candidateDestinationCoordinate,pieceAtDestination));
+                        legalMoves.add(new MajorAttackMove(board,this,candidateDestinationCoordinate,pieceAtDestination));
 
                     }
                 }
@@ -70,11 +74,11 @@ public class King extends Piece{
     }
 
     private boolean isEighthColumnExclusion(int currentPosition, int currentCandidateOffset) {
-        return BoardUtils.FIRST_COLUMN[currentPosition] && ((currentCandidateOffset == -7) || (currentCandidateOffset == -1) || (currentCandidateOffset == 9));
+        return BoardUtils.EIGHTH_COLUMN[currentPosition] && ((currentCandidateOffset == -7) || (currentCandidateOffset == 1) || (currentCandidateOffset == 9));
     }
 
     private boolean isFirstColumnExclusion(int currentPosition, int currentCandidateOffset) {
-        return BoardUtils.EIGHTH_COLUMN[currentPosition] && ((currentCandidateOffset == 7) || (currentCandidateOffset == 1) || (currentCandidateOffset == -9));
+        return BoardUtils.FIRST_COLUMN[currentPosition] && ((currentCandidateOffset == 7) || (currentCandidateOffset == -1) || (currentCandidateOffset == -9));
     }
     
 }

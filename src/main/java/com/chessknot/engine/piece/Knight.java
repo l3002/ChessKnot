@@ -17,7 +17,11 @@ public class Knight extends Piece{
     private final static int[] CANDIDATE_OFFSETS = {-17,-15,-10,-6,6,10,15,17};
 
     public Knight(final int piecePosition,final Alliance pieceAlliance) {
-        super(PieceType.KNIGHT, piecePosition, pieceAlliance);
+        super(PieceType.KNIGHT, piecePosition, pieceAlliance,true);
+    }
+
+    public Knight(final int piecePosition, final Alliance pieceAlliance, final boolean isFirstMove){
+        super(PieceType.KNIGHT, piecePosition, pieceAlliance, isFirstMove);
     }
 
     @Override
@@ -49,7 +53,7 @@ public class Knight extends Piece{
 
                     if(destinationPieceAlliance != this.pieceAlliance){
 
-                        legalMoves.add(new AttackMove(board,this,candidateDestinationCoordinate,pieceAtDestination));
+                        legalMoves.add(new MajorAttackMove(board,this,candidateDestinationCoordinate,pieceAtDestination));
 
                     }
                 }

@@ -9,7 +9,7 @@ import com.chessknot.engine.board.Board;
 import com.chessknot.engine.board.BoardUtils;
 import com.chessknot.engine.board.Move;
 import com.chessknot.engine.board.Tile;
-import com.chessknot.engine.board.Move.AttackMove;
+import com.chessknot.engine.board.Move.MajorAttackMove;
 import com.chessknot.engine.board.Move.MajorMove;
 import com.google.common.collect.ImmutableList;
 
@@ -18,7 +18,11 @@ public class Rook extends Piece{
     private static final int[] CANDIDATE_MOVE_VECTOR_COORDINATES = { -8 , -1 , 1, 8 };
 
     public Rook(final int piecePosition,final Alliance pieceAlliance) {
-        super(PieceType.ROOK, piecePosition, pieceAlliance);
+        super(PieceType.ROOK, piecePosition, pieceAlliance, true);
+    }
+
+    public Rook(final int piecePosition, final Alliance pieceAlliance, final boolean isFirstMove){
+        super(PieceType.ROOK, piecePosition, pieceAlliance, isFirstMove);
     }
 
     @Override
@@ -52,14 +56,16 @@ public class Rook extends Piece{
 
                     if(destinationPieceAlliance != this.pieceAlliance){
 
-                        legalMoves.add(new AttackMove(board,this,candidateDestinationCoordinate,pieceAtDestination));
+                        legalMoves.add(new MajorAttackMove(board,this,candidateDestinationCoordinate,pieceAtDestination));
 
                     }
 
                     break;
                 }
 
-                legalPositionFlag = isNextLegalPositionExclusion(candidateDestinationCoordinate);
+                if(currentVectorCoordinate != 8 && currentVectorCoordinate != -8){
+                    legalPositionFlag = isNextLegalPositionExclusion(candidateDestinationCoordinate);
+                }
                 candidateDestinationCoordinate += currentVectorCoordinate;
             }
         }
@@ -82,7 +88,7 @@ public class Rook extends Piece{
     }
 
     private boolean isEighthColumnExclusion(int currentPosition, int currentVectorCoordinate) {
-        return BoardUtils.FIRST_COLUMN[currentPosition] && currentVectorCoordinate == 1;
+        return BoardUtils.EIGHTH_COLUMN[currentPosition] && currentVectorCoordinate == 1;
     }
 
     private boolean isNextLegalPositionExclusion(int candidateDestinationCoordinate) {
