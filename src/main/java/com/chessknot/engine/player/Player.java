@@ -22,7 +22,7 @@ public abstract class Player {
     public Player(Board board, Collection<Move> legalMoves, Collection<Move> opponentLegalMoves) {
         this.board = board;
         this.kingPlayer = establishKing();
-        this.legalMoves = ImmutableList.copyOf(Iterables.concat(legalMoves, calculateKingCastles(legalMoves, opponentLegalMoves)));
+        this.legalMoves = ImmutableList.copyOf(Iterables.concat(legalMoves, calculateKingCastles(opponentLegalMoves)));
         this.isInCheck = !Player.calculateAttackOnTile(this.kingPlayer.getPiecePosition(),opponentLegalMoves).isEmpty();
     }
 
@@ -59,7 +59,6 @@ public abstract class Player {
         return this.legalMoves.contains(move);
     }
 
-    //TODO implement below methods!!
     public boolean isInCheck(){
         return this.isInCheck;
     }
@@ -83,6 +82,7 @@ public abstract class Player {
         return !this.isInCheck && !hasEscapeMoves();
     }
 
+    // TODO implement the below method
     public boolean isCastled(){
         return false;
     }
@@ -107,5 +107,7 @@ public abstract class Player {
     public abstract Collection<Piece> getActivePiece();
     public abstract Alliance getAlliance();
     public abstract Player getOpponent();
-    protected abstract Collection<Move> calculateKingCastles(final Collection<Move> playerLegal, final Collection<Move> opponentLegal);
+    public abstract Collection<Move> calculateKingCastles(final Collection<Move> opponentLegal);
+    public abstract boolean isQueensCastleEligible();
+    public abstract boolean isKingsCastleEligible();
 }

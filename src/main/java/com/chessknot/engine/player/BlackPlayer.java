@@ -39,7 +39,7 @@ public class BlackPlayer extends Player {
     }
 
     @Override
-    protected Collection<Move> calculateKingCastles(Collection<Move> playerLegal, Collection<Move> opponentLegal) {
+    public Collection<Move> calculateKingCastles(Collection<Move> opponentLegal) {
 
         final List<Move> kingCastles = new ArrayList<>();
 
@@ -49,6 +49,7 @@ public class BlackPlayer extends Player {
                 if(!rookTile.isEmptyTile() && rookTile.getPiece().isFirstMove()){
                     if(rookTile.getPiece().getPieceType().isRook() && Player.calculateAttackOnTile(5, opponentLegal).isEmpty() && Player.calculateAttackOnTile(6, opponentLegal).isEmpty()) {
                         kingCastles.add(new KingSideCastleMove(this.board, this.kingPlayer, 6, (Rook) rookTile.getPiece(), 7, 5));
+
                     }
                 }
             }
@@ -63,6 +64,26 @@ public class BlackPlayer extends Player {
         }
         return ImmutableList.copyOf(kingCastles);
     }
-    
-    
+
+    @Override
+    public boolean isQueensCastleEligible(){
+        if(this.kingPlayer.isFirstMove() && !this.isInCheck()){
+            final Tile rookTile = this.board.getTile(0);
+            if(!rookTile.isEmptyTile() && rookTile.getPiece().isFirstMove() && rookTile.getPiece().getPieceType().isRook()){
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public boolean isKingsCastleEligible(){
+        if(this.kingPlayer.isFirstMove() && !this.isInCheck()){
+            final Tile rookTile = this.board.getTile(7);
+            if(!rookTile.isEmptyTile() && rookTile.getPiece().isFirstMove() && rookTile.getPiece().getPieceType().isRook()){
+                return true;
+            }
+        }
+        return false;
+    }
 }

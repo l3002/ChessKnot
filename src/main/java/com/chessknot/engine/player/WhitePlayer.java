@@ -38,7 +38,7 @@ public class WhitePlayer extends Player{
     }
 
     @Override
-    protected Collection<Move> calculateKingCastles(Collection<Move> playerLegal, Collection<Move> opponentLegal) {
+    public Collection<Move> calculateKingCastles(Collection<Move> opponentLegal) {
 
         final List<Move> kingCastles = new ArrayList<>();
 
@@ -64,5 +64,25 @@ public class WhitePlayer extends Player{
         return ImmutableList.copyOf(kingCastles);
     }
     
-    
+    @Override
+    public boolean isQueensCastleEligible(){
+        if(this.kingPlayer.isFirstMove() && !this.isInCheck()){
+            final Tile rookTile = this.board.getTile(56);
+            if(!rookTile.isEmptyTile() && rookTile.getPiece().isFirstMove() && rookTile.getPiece().getPieceType().isRook()){
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public boolean isKingsCastleEligible(){
+        if(this.kingPlayer.isFirstMove() && !this.isInCheck()){
+            final Tile rookTile = this.board.getTile(63);
+            if(!rookTile.isEmptyTile() && rookTile.getPiece().isFirstMove() && rookTile.getPiece().getPieceType().isRook()){
+                return true;
+            }
+        }
+        return false;
+    }
 }
