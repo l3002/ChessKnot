@@ -7,6 +7,8 @@ It uses MiniMax Algorithm from the Game Theory to calculate best potential moves
 Additionally, It also provides several features like Board Flip, 
 Highlight Legal Moves etc.
 
+![image](https://github.com/l3002/ChessKnot/assets/111552820/caf7e6af-b484-48b4-aa87-bb7f3f25b3a0)
+
 ## Folder Structure
 
 The workspace contains two folders by default, where:
