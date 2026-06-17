@@ -1,94 +1,88 @@
 package com.chessknot.engine.piece;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-
-import com.chessknot.engine.Alliance;
 import com.chessknot.engine.board.Board;
-import com.chessknot.engine.board.BoardUtils;
-import com.chessknot.engine.board.Move;
-import com.chessknot.engine.board.Tile;
-import com.chessknot.engine.board.Move.MajorAttackMove;
-import com.chessknot.engine.board.Move.MajorMove;
-import com.google.common.collect.ImmutableList;
+import com.chessknot.engine.board.Board.BoardUtils;
 
 public class Bishop extends Piece {
 
-    private static final int[] CANDIDATE_MOVE_VECTOR_COORDINATES = { -9, -7 , 7 , 9 };
+    static final long[] MOVE_CACHE = makeMoveCache();
 
-    public Bishop(final int piecePosition,final Alliance pieceAlliance) {
-        super(PieceType.BISHOP,piecePosition, pieceAlliance,true);
+    public Bishop(final byte readOnlyMetadata, final byte writeableMetadata) {
+		super(readOnlyMetadata, writeableMetadata);
+	}
+
+    public static Bishop createPiece(final byte positionIndex, final Alliance alliance, final boolean isFirstMove) {
+        byte readOnlyMetadata = (byte) ((PieceType.BISHOP.ordinal() << 1) | alliance.ordinal());
+        byte writeableMetadata = (byte) ((positionIndex << 1) | (isFirstMove ? 1 : 0));
+        return new Bishop(readOnlyMetadata, writeableMetadata);
     }
 
-    public Bishop(final int piecePosition, final Alliance pieceAlliance, final boolean isFirstMove){
-        super(PieceType.BISHOP, piecePosition, pieceAlliance, isFirstMove);
+    public static Bishop createPiece(final byte positionIndex, final Alliance alliance) {
+        byte readOnlyMetadata = (byte) ((PieceType.BISHOP.ordinal() << 1) | alliance.ordinal());
+        byte writeableMetadata = (byte) ((positionIndex << 1) | 1);
+        return new Bishop(readOnlyMetadata, writeableMetadata);
     }
 
-    @Override
-    public Collection<Move> calculateLegalMoves(Board board) {
-        
-        final List<Move> legalMoves = new ArrayList<Move>();
+	private static final long[] makeMoveCache() {
+        final long[] moveCache = new long[BoardUtils.NUM_POS];
 
-        for(final int currentVectorCoordinate: CANDIDATE_MOVE_VECTOR_COORDINATES){
+        for (int pos = 0; pos < BoardUtils.NUM_POS; ++pos) {
+            final int rankIndex = BoardUtils.getRankIndex(pos);
+            final int fileIndex = BoardUtils.getFileIndex(pos);
+            long legalMoves = 0L;
 
-            int candidateDestinationCoordinate = this.piecePosition + currentVectorCoordinate;
+            for (final int rankDir : DIRECTIONS) {
+                for (final int fileDir : DIRECTIONS) {
+                    for (int checkRank = (int) (rankIndex + rankDir),
+                            checkFile = (int) (fileIndex + fileDir);
 
-            boolean legalPositionFlag = true;
+                            BoardUtils.isValidRankIndex(checkRank) && BoardUtils.isValidFileIndex(checkFile);
 
-            while(BoardUtils.isValidTileCoordinate(candidateDestinationCoordinate) && legalPositionFlag){
-
-                if(isEighthColumnExclusion(this.piecePosition, currentVectorCoordinate) || isFirstColumnExclusion(this.piecePosition, currentVectorCoordinate)){
-                    break;
-                }
-
-                final Tile candidateDestinationTile = board.getTile(candidateDestinationCoordinate);
-
-                if(candidateDestinationTile.isEmptyTile()){
-
-                    legalMoves.add(new MajorMove(board,this,candidateDestinationCoordinate));
-
-                }
-                else{
-
-                    final Piece pieceAtDestination = candidateDestinationTile.getPiece();
-                    final Alliance destinationPieceAlliance = pieceAtDestination.getPieceAlliance();
-
-                    if(destinationPieceAlliance != this.pieceAlliance){
-
-                        legalMoves.add(new MajorAttackMove(board,this,candidateDestinationCoordinate,pieceAtDestination));
-
+                            checkRank += rankDir, checkFile += fileDir) {
+                        final long rank = BoardUtils.RANK_MASKS[checkRank];
+                        final long file = BoardUtils.FILE_MASKS[checkFile];
+                        legalMoves |= rank & file;
                     }
-
-                    break;
                 }
-
-                legalPositionFlag = isNextLegalPositionExclusion(candidateDestinationCoordinate);
-                candidateDestinationCoordinate += currentVectorCoordinate;
             }
+
+            moveCache[pos] = legalMoves;
         }
-        return ImmutableList.copyOf(legalMoves);
+
+        return moveCache;
     }
 
     @Override
-    public Piece movePiece(Move move) {
-        return new Bishop(move.getDestinationCoordinate(), move.getPiece().getPieceAlliance());
+    public void updateLegalMovesAndCaptures(final Board board) {
+
+        final byte position = this.getPiecePosition();
+        final Alliance alliance = this.getPieceAlliance();
+        long legalMovesBoard = MOVE_CACHE[position];
+        final long gameBoard = board.getGameBoard();
+
+        if ((legalMovesBoard & gameBoard) == 0) {
+            this.legalMovesMask = legalMovesBoard;
+        }
+
+        final long opponentPieceBoard = alliance.isWhite() ? board.getBlackPieceBoard()
+                : board.getWhitePieceBoard();
+        final long alliancePieceBoard = alliance.isWhite() ? board.getWhitePieceBoard()
+                : board.getBlackPieceBoard();
+
+        legalMovesBoard = processForBishopCapturesAndBlockage(position, legalMovesBoard, opponentPieceBoard,
+                alliancePieceBoard);
+
+        this.legalMovesMask = legalMovesBoard;
     }
+
 
     @Override
-    public String toString(){
-        return PieceType.BISHOP.toString();
-    }
-    
-    private static boolean isNextLegalPositionExclusion(int candidateDestinationCoordinate){
-        return !(BoardUtils.FIRST_COLUMN[candidateDestinationCoordinate] || BoardUtils.EIGHTH_COLUMN[candidateDestinationCoordinate]);
-    }
-    
-    private static boolean isFirstColumnExclusion(int currentPosition, int candidateVectorCoordinate){
-        return BoardUtils.FIRST_COLUMN[currentPosition] && ((candidateVectorCoordinate == -9) || (candidateVectorCoordinate == 7));
+    public String toString() {
+        if (this.getPieceAlliance().isWhite()) {
+            return PieceType.BISHOP.toString();
+        } else {
+            return PieceType.BISHOP.toString().toLowerCase();
+        }
     }
 
-    private static boolean isEighthColumnExclusion(int currentPosition, int candidateVectorCoordinate){
-        return BoardUtils.EIGHTH_COLUMN[currentPosition] && ((candidateVectorCoordinate == -7) || (candidateVectorCoordinate == 9));
-    }
 }

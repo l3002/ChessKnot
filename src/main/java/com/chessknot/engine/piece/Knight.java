@@ -1,90 +1,80 @@
 package com.chessknot.engine.piece;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-
-import com.chessknot.engine.Alliance;
 import com.chessknot.engine.board.Board;
-import com.chessknot.engine.board.BoardUtils;
-import com.chessknot.engine.board.Move;
-import com.chessknot.engine.board.Tile;
-import com.chessknot.engine.board.Move.*;
-import com.google.common.collect.ImmutableList;
+import com.chessknot.engine.board.Board.BoardUtils;
 
-public class Knight extends Piece{
+public class Knight extends Piece {
 
-    private final static int[] CANDIDATE_OFFSETS = {-17,-15,-10,-6,6,10,15,17};
+    private static final long[] MOVE_CACHE = makeMoveCache();
 
-    public Knight(final int piecePosition,final Alliance pieceAlliance) {
-        super(PieceType.KNIGHT, piecePosition, pieceAlliance,true);
+    public Knight(final byte readOnlyMetadata, final byte writeableMetadata) {
+		super(readOnlyMetadata, writeableMetadata);
+	}
+
+    public static Knight createPiece(final byte positionIndex, final Alliance alliance, final boolean isFirstMove) {
+        byte readOnlyMetadata = (byte) ((PieceType.KNIGHT.ordinal() << 1) | alliance.ordinal());
+        byte writeableMetadata = (byte) ((positionIndex << 1) | (isFirstMove ? 1 : 0));
+        return new Knight(readOnlyMetadata, writeableMetadata);
     }
 
-    public Knight(final int piecePosition, final Alliance pieceAlliance, final boolean isFirstMove){
-        super(PieceType.KNIGHT, piecePosition, pieceAlliance, isFirstMove);
+    public static Knight createPiece(final byte positionIndex, final Alliance alliance) {
+        byte readOnlyMetadata = (byte) ((PieceType.KNIGHT.ordinal() << 1) | alliance.ordinal());
+        byte writeableMetadata = (byte) ((positionIndex << 1) | 1);
+        return new Knight(readOnlyMetadata, writeableMetadata);
     }
 
-    @Override
-    public Collection<Move> calculateLegalMoves(Board board) {
+	private static final long[] makeMoveCache() {
+        final long[] moveCache = new long[BoardUtils.NUM_POS];
 
-        final List<Move> legalMoves = new ArrayList<>();
-        
-        for(final int currentOffset: CANDIDATE_OFFSETS){
+        for (int pos = 0; pos < BoardUtils.NUM_POS; ++pos) {
+            final int rankIndex = BoardUtils.getRankIndex(pos);
+            final int fileIndex = BoardUtils.getFileIndex(pos);
+            long legalMoves = 0L;
 
-            final int candidateDestinationCoordinate = this.piecePosition + currentOffset;
-
-            if(BoardUtils.isValidTileCoordinate(candidateDestinationCoordinate)){
-
-                if(isFirstColumnExclusion(this.piecePosition, currentOffset) || isSecondColumnExclusion(this.piecePosition, currentOffset) || isSeventhColumnExclusion(this.piecePosition, currentOffset) || isEighthColumnExclusion(this.piecePosition, currentOffset)){
-                    continue;
-                }
-
-                final Tile candidateDestinationTile = board.getTile(candidateDestinationCoordinate);
-
-                if(candidateDestinationTile.isEmptyTile()){
-
-                    legalMoves.add(new MajorMove(board,this,candidateDestinationCoordinate));
-
-                }
-                else{
-                    
-                    final Piece pieceAtDestination = candidateDestinationTile.getPiece();
-                    final Alliance destinationPieceAlliance = pieceAtDestination.getPieceAlliance();
-
-                    if(destinationPieceAlliance != this.pieceAlliance){
-
-                        legalMoves.add(new MajorAttackMove(board,this,candidateDestinationCoordinate,pieceAtDestination));
-
+            for (final int offset1 : DIRECTIONS) {
+                for (final int offset2 : DIRECTIONS) {
+                    if (BoardUtils.isValidRankIndex((int) (rankIndex + 2 * offset1))
+                            && BoardUtils.isValidFileIndex((int) (fileIndex + offset2))) {
+                        legalMoves |= BoardUtils.RANK_MASKS[rankIndex + 2 * offset1]
+                                & BoardUtils.FILE_MASKS[fileIndex + offset2];
+                    }
+                    if (BoardUtils.isValidRankIndex((int) (rankIndex + offset2))
+                            && BoardUtils.isValidFileIndex((int) (fileIndex + 2 * offset1))) {
+                        legalMoves |= BoardUtils.RANK_MASKS[rankIndex + offset2]
+                                & BoardUtils.FILE_MASKS[fileIndex + 2 * offset1];
                     }
                 }
             }
+
+            moveCache[pos] = legalMoves;
         }
-        return ImmutableList.copyOf(legalMoves);
+
+        return moveCache;
     }
 
     @Override
-    public Piece movePiece(Move move) {
-        return new Knight(move.getDestinationCoordinate(), move.getPiece().getPieceAlliance());
+    public void updateLegalMovesAndCaptures(final Board board) {
+
+        final byte position = this.getPiecePosition();
+        final Alliance alliance = this.getPieceAlliance();
+        long legalMovesBoard = MOVE_CACHE[position];
+        final long alliancePieceBoard = alliance.isWhite() ? board.getWhitePieceBoard()
+                : board.getBlackPieceBoard();
+
+        // remove squares where same alliance piece is present
+        legalMovesBoard ^= legalMovesBoard & alliancePieceBoard;
+
+        //TODO: remove moves which leave on check
+        this.legalMovesMask = legalMovesBoard;
     }
 
     @Override
-    public String toString(){
-        return PieceType.KNIGHT.toString();
-    }
-    
-    private static boolean isFirstColumnExclusion(int currentPosition, int currentCandidateOffset){
-        return BoardUtils.FIRST_COLUMN[currentPosition] && ((currentCandidateOffset == -17) || (currentCandidateOffset == -10) || (currentCandidateOffset == 6) || (currentCandidateOffset == 15));
-    }
-
-    private static boolean isSecondColumnExclusion(int currentPosition, int currentCandidateOffset){
-        return BoardUtils.SECOND_COLUMN[currentPosition] && ((currentCandidateOffset == -10) || (currentCandidateOffset == 6));
+    public String toString() {
+        if (this.getPieceAlliance().isWhite()) {
+            return PieceType.KNIGHT.toString();
+        } else {
+            return PieceType.KNIGHT.toString().toLowerCase();
+        }
     }
 
-    private static boolean isEighthColumnExclusion(int currentPosition, int currentCandidateOffset){
-        return BoardUtils.EIGHTH_COLUMN[currentPosition] && ((currentCandidateOffset == -15) || (currentCandidateOffset == -6) || (currentCandidateOffset == 10) || (currentCandidateOffset == 17));
-    }
-
-    private static boolean isSeventhColumnExclusion(int currentPosition, int currentCandidateOffset){
-        return BoardUtils.SEVENTH_COLUMN[currentPosition] && ((currentCandidateOffset == -6) || (currentCandidateOffset == 10));
-    }
 }

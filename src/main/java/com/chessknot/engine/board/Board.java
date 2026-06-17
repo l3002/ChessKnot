@@ -1,12 +1,10 @@
 package com.chessknot.engine.board;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
-import com.chessknot.engine.Alliance;
+import com.chessknot.engine.piece.Alliance;
 import com.chessknot.engine.piece.Bishop;
 import com.chessknot.engine.piece.King;
 import com.chessknot.engine.piece.Knight;
@@ -14,205 +12,351 @@ import com.chessknot.engine.piece.Pawn;
 import com.chessknot.engine.piece.Piece;
 import com.chessknot.engine.piece.Queen;
 import com.chessknot.engine.piece.Rook;
-import com.chessknot.engine.player.BlackPlayer;
-import com.chessknot.engine.player.Player;
-import com.chessknot.engine.player.WhitePlayer;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 
 public class Board {
-    
-    private final List<Tile> gameBoard;
-    private final Collection<Piece> whitePieces;
-    private final Collection<Piece> blackPieces;
-    private final WhitePlayer whitePlayer;
-    private final BlackPlayer blackPlayer;
-    private final Player currentPlayer;
+
+    private long gameBoard;
+    private long whitePieceBoard;
+    private long blackPieceBoard;
+    private final Map<Byte, Piece> whitePieces;
+    private final Map<Byte, Piece> blackPieces;
     private final Pawn enPassantPawn;
 
-    private Board(Builder builder){
-        this.gameBoard = createGameBoard(builder);
-        this.whitePieces = calculateActivePieces(this.gameBoard, Alliance.WHITE);
-        this.blackPieces = calculateActivePieces(this.gameBoard, Alliance.BLACK);
+    private Board(final BoardBuilder builder) {
+        this.gameBoard = builder.gameBoard;
+        this.whitePieceBoard = builder.whitePieceBoard;
+        this.blackPieceBoard = builder.blackPieceBoard;
+        this.whitePieces = builder.whitePieces;
+        this.blackPieces = builder.blackPieces;
         this.enPassantPawn = builder.enPassantPawn;
-
-        final Collection<Move> whiteStandardlegalMoves = calculateLegalMoves(this.whitePieces);
-        final Collection<Move> blackStandardlegalMoves = calculateLegalMoves(this.blackPieces);
-
-        this.whitePlayer = new WhitePlayer(this, whiteStandardlegalMoves, blackStandardlegalMoves);
-        this.blackPlayer = new BlackPlayer(this, blackStandardlegalMoves, whiteStandardlegalMoves);
-
-        this.currentPlayer = builder.nextMoveMaker.choosePlayer(whitePlayer, blackPlayer);
+        // update legal moves for current position
+        for (Piece whitePiece : this.whitePieces.values()) {
+            whitePiece.updateLegalMovesAndCaptures(this);
+        }
+        for (Piece blackPiece : this.blackPieces.values()) {
+            blackPiece.updateLegalMovesAndCaptures(this);
+        }
     }
 
     public Pawn getEnPassantPawn() {
         return this.enPassantPawn;
     }
 
-    public Player getCurrentPlayer(){
-        return this.currentPlayer;
+    public long getGameBoard() {
+        return this.gameBoard;
     }
-    
-    private Collection<Move> calculateLegalMoves(final Collection<Piece> activePieces) {
-        
-        final List<Move> legalMoves = new ArrayList<>();
 
-        for(Piece piece : activePieces){
+    public long getWhitePieceBoard() {
+        return this.whitePieceBoard;
+    }
 
-            legalMoves.addAll(piece.calculateLegalMoves(this));
+    public long getBlackPieceBoard() {
+        return this.blackPieceBoard;
+    }
+
+    // public Map<Byte, Piece> getPieceMap(){
+    // final Map<Byte, Piece> combinedMap = new HashMap<Byte, Piece>();
+    // combinedMap.putAll(this.whitePieces);
+    // combinedMap.putAll(this.blackPieces);
+    // return combinedMap;
+    // }
+
+    public Map<Byte, Piece> getPieces(){
+        return whitePieces;
+    }
+
+    public Piece getPiece(final byte position) {
+
+        final Piece whitePiece = whitePieces.get(position);
+        if (whitePiece != null) {
+            return whitePiece;
         }
 
-        return ImmutableList.copyOf(legalMoves);
+        final Piece blackPiece = blackPieces.get(position);
+        if (blackPiece != null) {
+            return blackPiece;
+        }
+
+        return null;
     }
 
+    public void setGameBoard(final long gameBoard) {
+        this.gameBoard = gameBoard;
+    }
+
+    public void setWhitePieceBoard(final long whitePieceBoard) {
+        this.whitePieceBoard = whitePieceBoard;
+    }
+
+    public void setBlackPieceBoard(final long blackPieceBoard) {
+        this.blackPieceBoard = blackPieceBoard;
+    }
+
+    public long getOpponentLegalMovesBoard(final Alliance alliance) {
+        Collection<Piece> opponentPieces = whitePieces.values();
+        if (alliance == Alliance.WHITE) {
+            opponentPieces = blackPieces.values();
+        }
+
+        long opponentLegalMovesBoard = 0L;
+        for (Piece piece : opponentPieces) {
+            opponentLegalMovesBoard |= piece.getLegalMovesMask();
+        }
+
+        return opponentLegalMovesBoard;
+    }
 
     @Override
-    public String toString(){
+    public String toString() {
         final StringBuilder builder = new StringBuilder();
-        for(int i = 0; i< BoardUtils.NUM_TILES;i++){
-            final String tileText = this.gameBoard.get(i).toString();
-            builder.append(String.format("%3s",tileText));
-            if((i+1) % BoardUtils.NUM_TILES_PER_ROW == 0){
+        for (byte pos = BoardUtils.NUM_POS - 1; pos >= 0; --pos) {
+            if (((1L << pos) & gameBoard) != 0) {
+                builder.append(String.format("%3s", this.getPiece(pos).toString()));
+            } else {
+                builder.append(String.format("%3s", '.'));
+            }
+            if (pos % BoardUtils.BOARD_SIDE_LENGTH == 0) {
                 builder.append("\n");
             }
         }
         return builder.toString();
-    } 
-
-    public Player whitePlayer(){
-        return this.whitePlayer;
     }
 
-    public Player blackPlayer(){
-        return this.blackPlayer;
-    }
-
-    public Collection<Piece> getBlackPiece() {
-        return this.blackPieces;
-    }
-
-
-    public Collection<Piece> getWhitePiece() {
-        return this.whitePieces;
-    }
-
-    public Iterable<Move> getAllLegalMoves() {
-        return Iterables.unmodifiableIterable(Iterables.concat(this.whitePlayer.getLegalMoves(), this.blackPlayer.getLegalMoves()));
-    }
-
-    private static Collection<Piece> calculateActivePieces(final List<Tile> gameBoard,final Alliance alliance) {
-
-        final List<Piece> activePieces = new ArrayList<>();
-
-        for(final Tile tile : gameBoard){
-
-            if(!tile.isEmptyTile()){
-
-                final Piece piece = tile.getPiece();
-
-                if(piece.getPieceAlliance()==alliance){
-
-                    activePieces.add(piece);
-                    
-                }
-            }
-        }
-        return ImmutableList.copyOf(activePieces);
-    }
-
-    private List<Tile> createGameBoard(Builder builder) {
-        
-        final Tile[] tiles = new Tile[BoardUtils.NUM_TILES];
-        for(int i = 0; i < BoardUtils.NUM_TILES; i++){
-            tiles[i] = Tile.createTile(i, builder.boardConfig.get(i));
-        }
-        return ImmutableList.copyOf(tiles);
-    }
-
-    public Tile getTile(final int tileCoordinate){
-        return this.gameBoard.get(tileCoordinate);
-    }
-
-    public static Board createOnlyKingsBoard(){
-        final Builder builder = new Builder();
-        builder.setBoardConfig(new King(BoardUtils.getCoordinateAtPosition("a1"), Alliance.WHITE));
-        builder.setBoardConfig(new Queen(BoardUtils.getCoordinateAtPosition("d1"), Alliance.WHITE));
-        builder.setBoardConfig(new King(BoardUtils.getCoordinateAtPosition("h8"), Alliance.BLACK));
-        builder.setNextMoveMaker(Alliance.WHITE);
-        return builder.build();
-    }
-
-    public static Board createStandardBoard(){
-        final Builder builder = new Builder();
+    public static Board createStandardBoard() {
+        final BoardBuilder builder = new BoardBuilder();
         // black layout
-        builder.setBoardConfig(new Rook(0, Alliance.BLACK));
-        builder.setBoardConfig(new Knight(1,Alliance.BLACK));
-        builder.setBoardConfig(new Bishop(2, Alliance.BLACK));
-        builder.setBoardConfig(new Queen(3, Alliance.BLACK));
-        builder.setBoardConfig(new King(4, Alliance.BLACK));
-        builder.setBoardConfig(new Bishop(5, Alliance.BLACK));
-        builder.setBoardConfig(new Knight(6,Alliance.BLACK));
-        builder.setBoardConfig(new Rook(7, Alliance.BLACK));
-        builder.setBoardConfig(new Pawn(8,Alliance.BLACK));
-        builder.setBoardConfig(new Pawn(9,Alliance.BLACK));
-        builder.setBoardConfig(new Pawn(10,Alliance.BLACK));
-        builder.setBoardConfig(new Pawn(11,Alliance.BLACK));
-        builder.setBoardConfig(new Pawn(12,Alliance.BLACK));
-        builder.setBoardConfig(new Pawn(13,Alliance.BLACK));
-        builder.setBoardConfig(new Pawn(14,Alliance.BLACK));
-        builder.setBoardConfig(new Pawn(15,Alliance.BLACK));
+        builder.piece(Rook.createPiece((byte) 0, Alliance.WHITE));
+        builder.piece(Knight.createPiece((byte) 1, Alliance.WHITE));
+        builder.piece(Bishop.createPiece((byte) 2, Alliance.WHITE));
+        builder.piece(King.createPiece((byte) 3, Alliance.WHITE));
+        builder.piece(Queen.createPiece((byte) 4, Alliance.WHITE));
+        builder.piece(Bishop.createPiece((byte) 5, Alliance.WHITE));
+        builder.piece(Knight.createPiece((byte) 6, Alliance.WHITE));
+        builder.piece(Rook.createPiece((byte) 7, Alliance.WHITE));
 
-        //white layout
-        builder.setBoardConfig(new Rook(63, Alliance.WHITE));
-        builder.setBoardConfig(new Knight(62,Alliance.WHITE));
-        builder.setBoardConfig(new Bishop(61, Alliance.WHITE));
-        builder.setBoardConfig(new King(60, Alliance.WHITE));
-        builder.setBoardConfig(new Queen(59, Alliance.WHITE));
-        builder.setBoardConfig(new Bishop(58, Alliance.WHITE));
-        builder.setBoardConfig(new Knight(57,Alliance.WHITE));
-        builder.setBoardConfig(new Rook(56, Alliance.WHITE));
-        builder.setBoardConfig(new Pawn(55,Alliance.WHITE));
-        builder.setBoardConfig(new Pawn(54,Alliance.WHITE));
-        builder.setBoardConfig(new Pawn(53,Alliance.WHITE));
-        builder.setBoardConfig(new Pawn(52,Alliance.WHITE));
-        builder.setBoardConfig(new Pawn(51,Alliance.WHITE));
-        builder.setBoardConfig(new Pawn(50,Alliance.WHITE));
-        builder.setBoardConfig(new Pawn(49,Alliance.WHITE));
-        builder.setBoardConfig(new Pawn(48,Alliance.WHITE));
+        // white layout
+        builder.piece(Rook.createPiece((byte) 63, Alliance.BLACK));
+        builder.piece(Knight.createPiece((byte) 62, Alliance.BLACK));
+        builder.piece(Bishop.createPiece((byte) 61, Alliance.BLACK));
+        builder.piece(Queen.createPiece((byte) 60, Alliance.BLACK));
+        builder.piece(King.createPiece((byte) 59, Alliance.BLACK));
+        builder.piece(Bishop.createPiece((byte) 58, Alliance.BLACK));
+        builder.piece(Knight.createPiece((byte) 57, Alliance.BLACK));
+        builder.piece(Rook.createPiece((byte) 56, Alliance.BLACK));
 
-        //first white move
-        builder.setNextMoveMaker(Alliance.WHITE);
+        for(byte pos = 8, pos1 = 48; pos < 16 && pos1 < 56; ++pos, ++pos1){
+            builder.piece(Pawn.createPiece((byte) pos, Alliance.WHITE));
+            builder.piece(Pawn.createPiece((byte) pos1, Alliance.BLACK));
+        }
 
         return builder.build();
     }
 
+    public static class BoardUtils {
 
-    public static class Builder{
-        
-        Map<Integer, Piece> boardConfig;
-        Alliance nextMoveMaker;
+        public static final long[] RANK_MASKS = initRankMasks();
+        public static final long[] FILE_MASKS = initFileMasks();
+
+        public static final int NUM_POS = 64;
+        public static final int BOARD_SIDE_LENGTH = 8;
+
+        private BoardUtils() {
+            throw new AssertionError("Non-Instansiable Class");
+        }
+
+        private static long[] initRankMasks() {
+            final long[] rows = new long[BOARD_SIDE_LENGTH];
+
+            for (int i = 0; i < BOARD_SIDE_LENGTH; ++i) {
+
+                // for first row:
+                // uses -1L (with all active bits)
+                // and uses unsigned right shift operation to first remove
+                // all the active bits on the right except for the last 8 bits
+                //
+                // so, below happens,
+                //
+                // -1L row[0]
+                //
+                // 1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0
+                // 1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0
+                // 1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0
+                // 1 1 1 1 1 1 1 1 -> 0 0 0 0 0 0 0 0
+                // 1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0
+                // 1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0
+                // 1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0
+                // 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
+                //
+                // NOTE: In the above representation the 64 bit long is represented
+                // as a 8x8 grid of bits with most significant bits on the top.
+
+                if (i == 0) {
+                    final byte num_shift = NUM_POS - BOARD_SIDE_LENGTH;
+                    rows[i] = -1L >>> num_shift;
+                    continue;
+                }
+
+                // for all other rows:
+                // use first row and left shift it by (row_number * 8) bits
+                //
+                // so, below converstion happens for the second row:
+                //
+                // row[0] row[1]
+                //
+                // 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+                // 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+                // 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+                // 0 0 0 0 0 0 0 0 -> 0 0 0 0 0 0 0 0
+                // 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+                // 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+                // 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1
+                // 1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0
+
+                rows[i] = rows[0] << (i * BOARD_SIDE_LENGTH);
+            }
+
+            return rows;
+        }
+
+        private static long[] initFileMasks() {
+
+            final long[] columns = new long[BOARD_SIDE_LENGTH];
+
+            for (int i = 0; i < BOARD_SIDE_LENGTH; ++i) {
+
+                // for last column:
+                // uses 1L (with 1 active bits)
+                // and uses left shift operation to first move the 1 active bit
+                // by number of columns (8 bits) and use | operator to add an active least
+                // significant bit, then repeat the same for all the rows
+                //
+                // so, below happens on the first pass,
+                //
+                // 1L column[n]
+                //
+                // 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+                // 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+                // 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+                // 0 0 0 0 0 0 0 0 -> 0 0 0 0 0 0 0 0
+                // 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+                // 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+                // 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1
+                // 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 1
+                //
+                // NOTE: In the above representation the 64 bit long is represented
+                // as a 8x8 grid of bits with most significant bits on the top.
+
+                if (i == 0) {
+                    long column = 1L;
+                    for (int j = 1; j < BOARD_SIDE_LENGTH; ++j) {
+                        column <<= BOARD_SIDE_LENGTH;
+                        column |= 1;
+                    }
+                    columns[0] = column;
+                    continue;
+                }
+
+                // for all other columns:
+                // use first column and left shift it by 1 bits
+                //
+                // so, below converstion happens for the second column:
+                //
+                // column[n] column[n-1]
+                //
+                // 0 0 0 0 0 0 0 1 0 0 0 0 0 0 1 0
+                // 0 0 0 0 0 0 0 1 0 0 0 0 0 0 1 0
+                // 0 0 0 0 0 0 0 1 0 0 0 0 0 0 1 0
+                // 0 0 0 0 0 0 0 1 -> 0 0 0 0 0 0 1 0
+                // 0 0 0 0 0 0 0 1 0 0 0 0 0 0 1 0
+                // 0 0 0 0 0 0 0 1 0 0 0 0 0 0 1 0
+                // 0 0 0 0 0 0 0 1 0 0 0 0 0 0 1 0
+                // 0 0 0 0 0 0 0 1 0 0 0 0 0 0 1 0
+
+                columns[i] = columns[0] << i;
+            }
+
+            return columns;
+        }
+
+        public static boolean isValidRankIndex(final int rank) {
+            return rank >= 0 && rank < BOARD_SIDE_LENGTH;
+        }
+
+        public static boolean isValidFileIndex(final int file) {
+            return file >= 0 && file < BOARD_SIDE_LENGTH;
+        }
+
+        public static int getRankIndex(final int positionIndex) {
+            return positionIndex / 8;
+        }
+
+        public static int getFileIndex(final int positionIndex) {
+            return positionIndex % 8;
+        }
+
+        public static boolean isValidPositionIndex(final int index) {
+            return index >= 0 && index < NUM_POS;
+        }
+
+        public static int getPositionIndex(final int rankIndex, final int fileIndex) {
+            return rankIndex * BOARD_SIDE_LENGTH + (BOARD_SIDE_LENGTH - 1 - fileIndex);
+        }
+
+        public static int getKingSideRookFileIndex() {
+            return 0;
+        }
+
+        public static int getQueenSideRookFileIndex() {
+            return BOARD_SIDE_LENGTH - 1;
+        }
+    }
+
+    public static class BoardBuilder {
+
+        long gameBoard;
+        long whitePieceBoard;
+        long blackPieceBoard;
+        Map<Byte, Piece> whitePieces;
+        Map<Byte, Piece> blackPieces;
         Pawn enPassantPawn;
 
-
-        public Board build(){
+        public Board build() {
             return new Board(this);
         }
 
-        public Builder setBoardConfig(final Piece piece){
-            this.boardConfig.put(piece.getPiecePosition(),piece);
+        public BoardBuilder piece(final Piece piece) {
+            final byte position = piece.getPiecePosition();
+            final long positionBoard = (1L << position);
+
+            if ((positionBoard & gameBoard) != 0) {
+                throw new RuntimeException(position + " already has a piece!!");
+            }
+
+            if (piece.getPieceAlliance() == Alliance.WHITE) {
+                this.whitePieces.put(position, piece);
+                this.whitePieceBoard |= positionBoard;
+            }
+
+            if (piece.getPieceAlliance() == Alliance.BLACK) {
+                this.blackPieces.put(position, piece);
+                this.blackPieceBoard |= positionBoard;
+            }
+
+            this.gameBoard |= positionBoard;
+
             return this;
         }
 
-        public Builder setNextMoveMaker(final Alliance alliance){
-            this.nextMoveMaker = alliance;
-            return this;
+        public BoardBuilder() {
+            this.gameBoard = 0L;
+            this.whitePieceBoard = 0L;
+            this.blackPieceBoard = 0L;
+            this.whitePieces = new HashMap<Byte, Piece>();
+            this.blackPieces = new HashMap<Byte, Piece>();
+            this.enPassantPawn = null;
         }
 
-        public Builder(){
-            this.boardConfig = new HashMap<>();
-        }
-
-        public void setEnPassantPawn(Pawn movedPawn) {
+        public void setEnPassantPawn(final Pawn movedPawn) {
             this.enPassantPawn = movedPawn;
         }
     }

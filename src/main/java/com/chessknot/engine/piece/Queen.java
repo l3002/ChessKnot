@@ -1,98 +1,72 @@
 package com.chessknot.engine.piece;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-
-import com.chessknot.engine.Alliance;
 import com.chessknot.engine.board.Board;
-import com.chessknot.engine.board.BoardUtils;
-import com.chessknot.engine.board.Move;
-import com.chessknot.engine.board.Tile;
-import com.chessknot.engine.board.Move.MajorAttackMove;
-import com.chessknot.engine.board.Move.MajorMove;
-import com.google.common.collect.ImmutableList;
+import com.chessknot.engine.board.Board.BoardUtils;
 
-public class Queen extends Piece{
+public class Queen extends Piece {
 
-    private static final int[] CANDIDATE_MOVE_VECTOR_COORDINATES = { -9, -8, -7, -1, 1, 7, 8, 9 };
+    private static final long[] MOVE_CACHE = MAKE_MOVE_CACHE();
 
-    public Queen(int piecePosition, Alliance pieceAlliance) {
-        super(PieceType.QUEEN, piecePosition, pieceAlliance, true);
+	public Queen(final byte readOnlyMetadata, final byte writeableMetadata) {
+		super(readOnlyMetadata, writeableMetadata);
+	}
+    
+    public static Queen createPiece(final byte positionIndex, final Alliance alliance, final boolean isFirstMove) {
+        byte readOnlyMetadata = (byte) ((PieceType.QUEEN.ordinal() << 1) | alliance.ordinal());
+        byte writeableMetadata = (byte) ((positionIndex << 1) | (isFirstMove ? 1 : 0));
+        return new Queen(readOnlyMetadata, writeableMetadata);
     }
 
-    public Queen(final int piecePosition, final Alliance pieceAlliance, final boolean isFirstMove){
-        super(PieceType.QUEEN, piecePosition, pieceAlliance, isFirstMove);
+    public static Queen createPiece(final byte positionIndex, final Alliance alliance) {
+        byte readOnlyMetadata = (byte) ((PieceType.QUEEN.ordinal() << 1) | alliance.ordinal());
+        byte writeableMetadata = (byte) ((positionIndex << 1) | 1);
+        return new Queen(readOnlyMetadata, writeableMetadata);
     }
 
-    @Override
-    public Collection<Move> calculateLegalMoves(Board board) {
 
-        final List<Move> legalMoves = new ArrayList<Move>();
+	private static final long[] MAKE_MOVE_CACHE() {
+        final long[] moveCache = new long[BoardUtils.NUM_POS];
 
-        for(final int candidateVectorCoordinate: CANDIDATE_MOVE_VECTOR_COORDINATES){
-
-            int candidateDestinationCoordinate = this.piecePosition + candidateVectorCoordinate;
-
-            boolean legalPositionFlag = true;
-
-            while(BoardUtils.isValidTileCoordinate(candidateDestinationCoordinate) && legalPositionFlag){
-
-                if(isEighthColumnExclusion(this.piecePosition, candidateVectorCoordinate) || isFirstColumnExclusion(this.piecePosition, candidateVectorCoordinate)){
-                    break;
-                }
-
-                final Tile candidateDestinationTile = board.getTile(candidateDestinationCoordinate);
-
-                if(candidateDestinationTile.isEmptyTile()){
-
-                    legalMoves.add(new MajorMove(board,this,candidateDestinationCoordinate));
-
-                }
-                else{
-
-                    final Piece pieceAtDestination = candidateDestinationTile.getPiece();
-                    final Alliance destinationPieceAlliance = pieceAtDestination.getPieceAlliance();
-
-                    if(destinationPieceAlliance != this.pieceAlliance){
-
-                        legalMoves.add(new MajorAttackMove(board,this,candidateDestinationCoordinate,pieceAtDestination));
-
-                    }
-
-                    break;
-                }
-                if(candidateVectorCoordinate != 8 && candidateVectorCoordinate != -8){
-                    legalPositionFlag = isNextLegalPositionExclusion(candidateDestinationCoordinate);
-                }
-                candidateDestinationCoordinate += candidateVectorCoordinate;
-            }
+        for (byte pos = 0; pos < BoardUtils.NUM_POS; ++pos) {
+            moveCache[pos] = Rook.MOVE_CACHE[pos] | Bishop.MOVE_CACHE[pos];
         }
-        
-        return ImmutableList.copyOf(legalMoves);
+
+        return moveCache;
     }
 
     @Override
-    public Piece movePiece(Move move) {
-        return new Queen(move.getDestinationCoordinate(), move.getPiece().getPieceAlliance());
+    public void updateLegalMovesAndCaptures(final Board board) {
+
+        final byte position = this.getPiecePosition();
+        final Alliance alliance = this.getPieceAlliance();
+        long legalMovesBoard = MOVE_CACHE[position];
+        final long gameBoard = board.getGameBoard();
+
+        if ((legalMovesBoard & gameBoard) == 0) {
+            this.legalMovesMask = legalMovesBoard;
+            return;
+        }
+
+        final long opponentPieceBoard = alliance.isWhite() ? board.getBlackPieceBoard()
+                : board.getWhitePieceBoard();
+        final long alliancePieceBoard = alliance.isWhite() ? board.getWhitePieceBoard()
+                : board.getBlackPieceBoard();
+
+        legalMovesBoard = processForRookCapturesAndBlockage(position, legalMovesBoard,
+                opponentPieceBoard, alliancePieceBoard);
+        legalMovesBoard = processForBishopCapturesAndBlockage(position, legalMovesBoard,
+                opponentPieceBoard, alliancePieceBoard);
+
+        this.legalMovesMask = legalMovesBoard;
     }
 
     @Override
-    public String toString(){
-        return PieceType.QUEEN.toString();
-    }
-    
-    private boolean isFirstColumnExclusion(int currentPosition, int candidateVectorCoordinate) {
-        return BoardUtils.FIRST_COLUMN[currentPosition] && ((candidateVectorCoordinate == -9) || (candidateVectorCoordinate == -1) || (candidateVectorCoordinate == 7));
-    }
-
-    private boolean isEighthColumnExclusion(int currentPosition, int candidateVectorCoordinate) {
-        return BoardUtils.EIGHTH_COLUMN[currentPosition] && ((candidateVectorCoordinate == -7) || (candidateVectorCoordinate == 1) || (candidateVectorCoordinate == 9));
+    public String toString() {
+        if (this.getPieceAlliance().isWhite()) {
+            return PieceType.QUEEN.toString();
+        } else {
+            return PieceType.QUEEN.toString().toLowerCase();
+        }
     }
 
-    private boolean isNextLegalPositionExclusion(int candidateDestinationCoordinate) {
-        return !(BoardUtils.FIRST_COLUMN[candidateDestinationCoordinate] || BoardUtils.EIGHTH_COLUMN[candidateDestinationCoordinate]);
-    }
-    
-    
 }
