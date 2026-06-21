@@ -63,7 +63,7 @@ public abstract class Piece {
 
     public static Piece createPiece(final byte positionIndex, final Alliance alliance, final PieceType pieceType,
             final boolean isFirstMove) {
-        if (positionIndex < 0 || positionIndex > BoardUtils.NUM_POS) {
+        if (positionIndex < 0 || positionIndex >= BoardUtils.NUM_POS) {
             // TODO: might need to handle this.
             throw new RuntimeException("Invalid position Index");
         }
@@ -73,7 +73,7 @@ public abstract class Piece {
     }
 
     public static Piece createPiece(final byte positionIndex, final Alliance alliance, final PieceType pieceType) {
-        if (positionIndex < 0 || positionIndex > BoardUtils.NUM_POS) {
+        if (positionIndex < 0 || positionIndex >= BoardUtils.NUM_POS) {
             // TODO: might need to handle this.
             throw new RuntimeException("Invalid position Index");
         }
@@ -212,14 +212,14 @@ public abstract class Piece {
         }
 
         final Piece other = (Piece) object;
-        return this.readOnlyMetadata == other.readOnlyMetadata &&
-                this.writeableMetadata == other.writeableMetadata;
+        return this.readOnlyMetadata == other.readOnlyMetadata; 
     }
 
     @Override
     public int hashCode() {
-        // TODO: implement hashcode
-        return 0;
+        int hashCode = 17;
+        hashCode += readOnlyMetadata * 31;
+        return hashCode;
     }
 
     public PieceType getPieceType() {

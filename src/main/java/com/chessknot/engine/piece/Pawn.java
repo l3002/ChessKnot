@@ -94,7 +94,7 @@ public class Pawn extends Piece {
             final long rank = BoardUtils.RANK_MASKS[rankIndex + direction];
             final long file = BoardUtils.FILE_MASKS[fileIndex + 1];
             if ((opponentPieceMask & rank & file) != 0) {
-                board.updateAttacks(BoardUtils.getPositionIndex(rankIndex, fileIndex), position);
+                board.updateAttacks(BoardUtils.getPositionIndex(rankIndex + direction, fileIndex + 1), position);
             }
         }
         if (BoardUtils.isValidFileIndex((byte) (fileIndex - 1))
@@ -102,7 +102,7 @@ public class Pawn extends Piece {
             final long rank = BoardUtils.RANK_MASKS[rankIndex + direction];
             final long file = BoardUtils.FILE_MASKS[fileIndex - 1];
             if ((opponentPieceMask & rank & file) != 0) {
-                board.updateAttacks(BoardUtils.getPositionIndex(rankIndex, fileIndex), position);
+                board.updateAttacks(BoardUtils.getPositionIndex(rankIndex + direction, fileIndex - 1), position);
             }
         }
 

@@ -77,7 +77,10 @@ public class Board {
 
     public void placePiece(final Piece piece) {
         final byte piecePosition = piece.getPiecePosition();
-        this.gameBoardMask ^= (1L << piecePosition);
+        if(((1L << piecePosition) & this.gameBoardMask) != 0){
+            throw new RuntimeException(piecePosition + " already has a piece");
+        }
+        this.gameBoardMask |= (1L << piecePosition);
         if(piece.getPieceAlliance().isWhite()){
             this.whitePieces.put(piecePosition, piece);
             whitePiecesMask |= (1L << piecePosition);
