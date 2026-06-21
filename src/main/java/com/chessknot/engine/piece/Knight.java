@@ -1,29 +1,17 @@
 package com.chessknot.engine.piece;
 
 import com.chessknot.engine.board.Board;
-import com.chessknot.engine.board.Board.BoardUtils;
+import com.chessknot.engine.board.BoardUtils;
 
 public class Knight extends Piece {
 
     private static final long[] MOVE_CACHE = makeMoveCache();
 
-    public Knight(final byte readOnlyMetadata, final byte writeableMetadata) {
-		super(readOnlyMetadata, writeableMetadata);
-	}
-
-    public static Knight createPiece(final byte positionIndex, final Alliance alliance, final boolean isFirstMove) {
-        byte readOnlyMetadata = (byte) ((PieceType.KNIGHT.ordinal() << 1) | alliance.ordinal());
-        byte writeableMetadata = (byte) ((positionIndex << 1) | (isFirstMove ? 1 : 0));
-        return new Knight(readOnlyMetadata, writeableMetadata);
+    Knight(final byte readOnlyMetadata, final byte writeableMetadata) {
+        super(readOnlyMetadata, writeableMetadata);
     }
 
-    public static Knight createPiece(final byte positionIndex, final Alliance alliance) {
-        byte readOnlyMetadata = (byte) ((PieceType.KNIGHT.ordinal() << 1) | alliance.ordinal());
-        byte writeableMetadata = (byte) ((positionIndex << 1) | 1);
-        return new Knight(readOnlyMetadata, writeableMetadata);
-    }
-
-	private static final long[] makeMoveCache() {
+    private static final long[] makeMoveCache() {
         final long[] moveCache = new long[BoardUtils.NUM_POS];
 
         for (int pos = 0; pos < BoardUtils.NUM_POS; ++pos) {
@@ -53,19 +41,44 @@ public class Knight extends Piece {
     }
 
     @Override
-    public void updateLegalMovesAndCaptures(final Board board) {
+    public void initialUpdateForPossibleMovesMask(final Board board) {
 
         final byte position = this.getPiecePosition();
         final Alliance alliance = this.getPieceAlliance();
         long legalMovesBoard = MOVE_CACHE[position];
-        final long alliancePieceBoard = alliance.isWhite() ? board.getWhitePieceBoard()
-                : board.getBlackPieceBoard();
+        final long alliancePieceBoard = alliance.isWhite() ? board.getWhitePiecesMask()
+                : board.getBlackPiecesMask();
 
         // remove squares where same alliance piece is present
         legalMovesBoard ^= legalMovesBoard & alliancePieceBoard;
 
-        //TODO: remove moves which leave on check
-        this.legalMovesMask = legalMovesBoard;
+        this.possibleMovesMask = legalMovesBoard;
+    }
+
+    @Override
+    public void updateAttackMatrixAndMask(Board board) {
+
+        final byte position = this.getPiecePosition();
+        final int rankIndex = BoardUtils.getRankIndex(position);
+        final int fileIndex = BoardUtils.getFileIndex(position);
+        final long opponentPieceMask = this.getPieceAlliance().isWhite() ? board.getBlackPiecesMask()
+                : board.getWhitePiecesMask();
+        this.attacksMask = this.possibleMovesMask & opponentPieceMask;
+
+        for (final int offset1 : DIRECTIONS) {
+            for (final int offset2 : DIRECTIONS) {
+                if (BoardUtils.isValidRankIndex((int) (rankIndex + 2 * offset1))
+                        && BoardUtils.isValidFileIndex((int) (fileIndex + offset2))) {
+                    board.updateAttacks(BoardUtils.getPositionIndex(rankIndex + 2 * offset1, fileIndex + offset2),
+                            position);
+                }
+                if (BoardUtils.isValidRankIndex((int) (rankIndex + offset2))
+                        && BoardUtils.isValidFileIndex((int) (fileIndex + 2 * offset1))) {
+                    board.updateAttacks(BoardUtils.getPositionIndex(rankIndex + offset2, fileIndex + 2 * offset1),
+                            position);
+                }
+            }
+        }
     }
 
     @Override

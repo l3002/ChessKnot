@@ -1,6 +1,6 @@
 package com.chessknot.engine.piece;
 
-import com.chessknot.engine.board.Board.BoardUtils;
+import com.chessknot.engine.board.BoardUtils;
 
 public enum Alliance {
     WHITE {
@@ -15,16 +15,34 @@ public enum Alliance {
         }
 
         @Override
-        public boolean isPawnPromotionSquare(byte position) {
-            return (BoardUtils.RANK_MASKS[BoardUtils.BOARD_SIDE_LENGTH - 1] & (1L << position)) != 0; 
-        }
-
-        @Override
-        public byte getRookRankIndex(){
+        public byte kingSideRookPosition() {
             return 0;
         }
 
+        @Override
+        public long kingSideCastleBlockMask() {
+            long kingSideCastleBlockMask = 0L;
+            for (int blockPos = 0; blockPos < BoardUtils.BOARD_SIDE_LENGTH / 2 - 2; ++blockPos) {
+                kingSideCastleBlockMask = (kingSideCastleBlockMask << 1) | 1L;
+            }
+            kingSideCastleBlockMask <<= 1;
+            return kingSideCastleBlockMask;
+        }
 
+        @Override
+        public long queenSideCastleBlockMask() {
+            long queenSideCastleBlockMask = 0L;
+            for (int blockPos = 0; blockPos < BoardUtils.BOARD_SIDE_LENGTH / 2 - 1; ++blockPos) {
+                queenSideCastleBlockMask = (queenSideCastleBlockMask << 1) | 1L;
+            }
+            queenSideCastleBlockMask <<= BoardUtils.BOARD_SIDE_LENGTH / 2;
+            return queenSideCastleBlockMask;
+        }
+
+        @Override
+        public byte queenSideRookPosition() {
+            return BoardUtils.BOARD_SIDE_LENGTH - 1;
+        }
     },
 
     BLACK {
@@ -34,23 +52,52 @@ public enum Alliance {
         }
 
         @Override
+        public byte kingSideRookPosition() {
+            return BoardUtils.BOARD_SIDE_LENGTH * (BoardUtils.BOARD_SIDE_LENGTH - 1);
+        }
+
+        @Override
+        public byte queenSideRookPosition() {
+            return BoardUtils.BOARD_SIDE_LENGTH * BoardUtils.BOARD_SIDE_LENGTH - 1;
+        }
+
+        @Override
         public boolean isWhite() {
             return false;
         }
 
         @Override
-        public boolean isPawnPromotionSquare(byte position) {
-            return (BoardUtils.RANK_MASKS[0] & (1L << position)) != 0; 
+        public long kingSideCastleBlockMask() {
+            long kingSideCastleBlockMask = 0L;
+            for (int blockPos = 0; blockPos < BoardUtils.BOARD_SIDE_LENGTH / 2 - 2; ++blockPos) {
+                kingSideCastleBlockMask = (kingSideCastleBlockMask << 1) | 1L;
+            }
+            kingSideCastleBlockMask <<= BoardUtils.BOARD_SIDE_LENGTH * (BoardUtils.BOARD_SIDE_LENGTH - 1);
+            return kingSideCastleBlockMask;
         }
 
         @Override
-        public byte getRookRankIndex(){
-            return BoardUtils.BOARD_SIDE_LENGTH - 1;
+        public long queenSideCastleBlockMask() {
+            long queenSideCastleBlockMask = 0L;
+            for (int blockPos = 0; blockPos < BoardUtils.BOARD_SIDE_LENGTH / 2 - 2; ++blockPos) {
+                queenSideCastleBlockMask = (queenSideCastleBlockMask << 1) | 1L;
+            }
+            queenSideCastleBlockMask <<= BoardUtils.BOARD_SIDE_LENGTH * (BoardUtils.BOARD_SIDE_LENGTH - 1)
+                    + (BoardUtils.BOARD_SIDE_LENGTH / 2 - 1);
+            return queenSideCastleBlockMask;
         }
     };
 
     public abstract byte getPawnDirection();
+
+    public abstract byte kingSideRookPosition();
+
+    public abstract byte queenSideRookPosition();
+
     public abstract boolean isWhite();
-    public abstract boolean isPawnPromotionSquare(byte position);
-    public abstract byte getRookRankIndex();
+
+    public abstract long kingSideCastleBlockMask();
+
+    public abstract long queenSideCastleBlockMask();
+
 }

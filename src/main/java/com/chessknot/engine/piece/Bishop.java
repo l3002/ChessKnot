@@ -1,80 +1,108 @@
 package com.chessknot.engine.piece;
 
 import com.chessknot.engine.board.Board;
-import com.chessknot.engine.board.Board.BoardUtils;
+import com.chessknot.engine.board.BoardUtils;
 
 public class Bishop extends Piece {
 
-    static final long[] MOVE_CACHE = makeMoveCache();
-
-    public Bishop(final byte readOnlyMetadata, final byte writeableMetadata) {
-		super(readOnlyMetadata, writeableMetadata);
-	}
-
-    public static Bishop createPiece(final byte positionIndex, final Alliance alliance, final boolean isFirstMove) {
-        byte readOnlyMetadata = (byte) ((PieceType.BISHOP.ordinal() << 1) | alliance.ordinal());
-        byte writeableMetadata = (byte) ((positionIndex << 1) | (isFirstMove ? 1 : 0));
-        return new Bishop(readOnlyMetadata, writeableMetadata);
-    }
-
-    public static Bishop createPiece(final byte positionIndex, final Alliance alliance) {
-        byte readOnlyMetadata = (byte) ((PieceType.BISHOP.ordinal() << 1) | alliance.ordinal());
-        byte writeableMetadata = (byte) ((positionIndex << 1) | 1);
-        return new Bishop(readOnlyMetadata, writeableMetadata);
-    }
-
-	private static final long[] makeMoveCache() {
-        final long[] moveCache = new long[BoardUtils.NUM_POS];
-
-        for (int pos = 0; pos < BoardUtils.NUM_POS; ++pos) {
-            final int rankIndex = BoardUtils.getRankIndex(pos);
-            final int fileIndex = BoardUtils.getFileIndex(pos);
-            long legalMoves = 0L;
-
-            for (final int rankDir : DIRECTIONS) {
-                for (final int fileDir : DIRECTIONS) {
-                    for (int checkRank = (int) (rankIndex + rankDir),
-                            checkFile = (int) (fileIndex + fileDir);
-
-                            BoardUtils.isValidRankIndex(checkRank) && BoardUtils.isValidFileIndex(checkFile);
-
-                            checkRank += rankDir, checkFile += fileDir) {
-                        final long rank = BoardUtils.RANK_MASKS[checkRank];
-                        final long file = BoardUtils.FILE_MASKS[checkFile];
-                        legalMoves |= rank & file;
-                    }
-                }
-            }
-
-            moveCache[pos] = legalMoves;
-        }
-
-        return moveCache;
+    Bishop(final byte readOnlyMetadata, final byte writeableMetadata) {
+        super(readOnlyMetadata, writeableMetadata);
     }
 
     @Override
-    public void updateLegalMovesAndCaptures(final Board board) {
+    public void initialUpdateForPossibleMovesMask(final Board board) {
 
         final byte position = this.getPiecePosition();
         final Alliance alliance = this.getPieceAlliance();
-        long legalMovesBoard = MOVE_CACHE[position];
-        final long gameBoard = board.getGameBoard();
+        long possibleMovesMask = (BoardUtils.FORWARD_DIAGONALS[BoardUtils.getForwardDiagonalIndex(position)]
+                | BoardUtils.BACKWARD_DIAGONALS[BoardUtils.getBackwardDiagonalIndex(position)]) ^ (1L << position);
+        final long gameBoard = board.getGameBoardMask();
 
-        if ((legalMovesBoard & gameBoard) == 0) {
-            this.legalMovesMask = legalMovesBoard;
+        if ((possibleMovesMask & gameBoard) == 0) {
+            this.possibleMovesMask = possibleMovesMask;
         }
 
-        final long opponentPieceBoard = alliance.isWhite() ? board.getBlackPieceBoard()
-                : board.getWhitePieceBoard();
-        final long alliancePieceBoard = alliance.isWhite() ? board.getWhitePieceBoard()
-                : board.getBlackPieceBoard();
+        possibleMovesMask = processForCapturesAndBlocked(position, possibleMovesMask, alliance, board);
 
-        legalMovesBoard = processForBishopCapturesAndBlockage(position, legalMovesBoard, opponentPieceBoard,
-                alliancePieceBoard);
-
-        this.legalMovesMask = legalMovesBoard;
+        this.possibleMovesMask = possibleMovesMask;
     }
 
+    public static final long processForCapturesAndBlocked(final byte position, long legalMovesBoard,
+            final Alliance alliance, final Board board) {
+        final int rankIndex = BoardUtils.getRankIndex(position);
+        final int fileIndex = BoardUtils.getFileIndex(position);
+        final long opponentPieceMask = alliance.isWhite() ? board.getBlackPiecesMask()
+                : board.getWhitePiecesMask();
+        final long alliancePieceMask = alliance.isWhite() ? board.getWhitePiecesMask()
+                : board.getBlackPiecesMask();
+
+        for (final int rankDir : DIRECTIONS) {
+            for (final int fileDir : DIRECTIONS) {
+                boolean found = false;
+                for (int checkRank = rankIndex + rankDir,
+                        checkFile = fileIndex + fileDir;
+
+                        BoardUtils.isValidRankIndex(checkRank) && BoardUtils.isValidFileIndex(checkFile);
+
+                        checkRank += rankDir, checkFile += fileDir) {
+                    final long rank = BoardUtils.RANK_MASKS[checkRank];
+                    final long file = BoardUtils.FILE_MASKS[checkFile];
+
+                    if (found || ((legalMovesBoard & alliancePieceMask) & (rank & file)) != 0) {
+                        legalMovesBoard ^= (rank & file);
+                        found = true;
+                    }
+
+                    else if (((legalMovesBoard & opponentPieceMask) & (rank & file)) != 0) {
+                        found = true;
+                    }
+                }
+            }
+        }
+
+        return legalMovesBoard;
+    }
+
+    @Override
+    public void updateAttackMatrixAndMask(Board board) {
+        final byte position = this.getPiecePosition();
+        final Alliance alliance = this.getPieceAlliance();
+
+        this.attacksMask = createAttackMaskAndUpdateAttackMatrix(position, alliance, this.possibleMovesMask, board);
+    }
+
+    public static final long createAttackMaskAndUpdateAttackMatrix(final byte position, final Alliance alliance,
+            final long possibleMovesMask, final Board board) {
+
+        final int pieceRankIndex = BoardUtils.getRankIndex(position);
+        final int pieceFileIndex = BoardUtils.getFileIndex(position);
+        final long opponentPieceMask = alliance.isWhite() ? board.getBlackPiecesMask()
+                : board.getWhitePiecesMask();
+
+        long attackMask = opponentPieceMask & possibleMovesMask;
+
+        for (final int rankDir : DIRECTIONS) {
+            for (final int fileDir : DIRECTIONS) {
+                for (int rankIndex = pieceRankIndex + rankDir,
+                        fileIndex = pieceFileIndex + fileDir;
+
+                        BoardUtils.isValidRankIndex(rankIndex) && BoardUtils.isValidFileIndex(fileIndex)
+                                && (possibleMovesMask & BoardUtils.RANK_MASKS[rankIndex]
+                                        & BoardUtils.FILE_MASKS[fileIndex]) != 0;
+
+                        rankIndex += rankDir, fileIndex += fileDir) {
+                    final long rank = BoardUtils.RANK_MASKS[rankIndex];
+                    final long file = BoardUtils.FILE_MASKS[fileIndex];
+
+                    if ((possibleMovesMask & opponentPieceMask & rank & file) != 0) {
+                        board.updateAttacks(BoardUtils.getPositionIndex(rankIndex, fileIndex), position);
+                    }
+                }
+            }
+        }
+
+        return attackMask;
+    }
 
     @Override
     public String toString() {

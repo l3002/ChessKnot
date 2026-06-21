@@ -1,68 +1,103 @@
 package com.chessknot.engine.board;
 
-import java.util.Collection;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
-import com.chessknot.engine.piece.Alliance;
-import com.chessknot.engine.piece.Bishop;
-import com.chessknot.engine.piece.King;
-import com.chessknot.engine.piece.Knight;
 import com.chessknot.engine.piece.Pawn;
 import com.chessknot.engine.piece.Piece;
-import com.chessknot.engine.piece.Queen;
-import com.chessknot.engine.piece.Rook;
 
 public class Board {
 
-    private long gameBoard;
-    private long whitePieceBoard;
-    private long blackPieceBoard;
+    private long gameBoardMask;
+    private long whitePiecesMask;
+    private long blackPiecesMask;
+    private byte whiteKingPosition;
+	private byte blackKingPosition;
     private final Map<Byte, Piece> whitePieces;
     private final Map<Byte, Piece> blackPieces;
-    private final Pawn enPassantPawn;
+    private final List<Set<Byte>> attackMatrix;
+    private Pawn enPassantPawn;
 
     private Board(final BoardBuilder builder) {
-        this.gameBoard = builder.gameBoard;
-        this.whitePieceBoard = builder.whitePieceBoard;
-        this.blackPieceBoard = builder.blackPieceBoard;
+        this.gameBoardMask = builder.gameBoard;
+        this.whitePiecesMask = builder.whitePieceBoard;
+        this.blackPiecesMask = builder.blackPieceBoard;
+        this.whiteKingPosition = builder.whiteKingPosition;
+        this.blackKingPosition = builder.blackKingPosition;
         this.whitePieces = builder.whitePieces;
         this.blackPieces = builder.blackPieces;
+        this.attackMatrix = builder.attackMatrix;
         this.enPassantPawn = builder.enPassantPawn;
-        // update legal moves for current position
-        for (Piece whitePiece : this.whitePieces.values()) {
-            whitePiece.updateLegalMovesAndCaptures(this);
-        }
-        for (Piece blackPiece : this.blackPieces.values()) {
-            blackPiece.updateLegalMovesAndCaptures(this);
-        }
+        this.whitePieces.values().stream().forEach((p) -> p.initialUpdateForPossibleMovesMask(this));
+        this.blackPieces.values().stream().forEach((p) -> p.initialUpdateForPossibleMovesMask(this));
+        this.whitePieces.values().stream().forEach((p) -> p.updateAttackMatrixAndMask(this));
+        this.blackPieces.values().stream().forEach((p) -> p.updateAttackMatrixAndMask(this));
+        // List copy is required as pieces are concurrently removed from 
+        List<Piece> whitePieces = List.copyOf(this.whitePieces.values());
+        whitePieces.stream().forEach((p) -> p.updateLeavesOnCheckMovesMask(this));
+        List<Piece> blackPieces = List.copyOf(this.blackPieces.values());
+        blackPieces.stream().forEach((p) -> p.updateLeavesOnCheckMovesMask(this));
+    }
+
+    public void updateAttacks(final int attackedPiecePosition, final byte attackingPiecePosition) {
+        Set<Byte> attackingPositionsList = this.attackMatrix.get(attackedPiecePosition);
+        attackingPositionsList.add(attackingPiecePosition);
+    }
+
+    public Set<Byte> getAttackingPositions(int attackedPosition) {
+        return attackMatrix.get(attackedPosition);
     }
 
     public Pawn getEnPassantPawn() {
         return this.enPassantPawn;
     }
 
-    public long getGameBoard() {
-        return this.gameBoard;
+    public Piece popPiece(final byte position) {
+        Piece piece;
+        if((piece = this.whitePieces.get(position)) != null){
+            this.whitePieces.remove(position);
+            this.whitePiecesMask ^= (1L << position);
+            this.gameBoardMask ^= (1L << position);
+            return piece;
+        }
+        if((piece = this.blackPieces.get(position)) != null){
+            this.blackPieces.remove(position);
+            this.blackPiecesMask ^= (1L << position);
+            this.gameBoardMask ^= (1L << position);
+            return piece;
+        }
+
+        // TODO: might need to handle this
+        throw new RuntimeException("Piece not present on board");
     }
 
-    public long getWhitePieceBoard() {
-        return this.whitePieceBoard;
+    public void placePiece(final Piece piece) {
+        final byte piecePosition = piece.getPiecePosition();
+        this.gameBoardMask ^= (1L << piecePosition);
+        if(piece.getPieceAlliance().isWhite()){
+            this.whitePieces.put(piecePosition, piece);
+            whitePiecesMask |= (1L << piecePosition);
+        }
+        else{
+            this.blackPieces.put(piecePosition, piece);
+            blackPiecesMask |= (1L << piecePosition);
+        }
     }
 
-    public long getBlackPieceBoard() {
-        return this.blackPieceBoard;
+    public long getGameBoardMask() {
+        return this.gameBoardMask;
     }
 
-    // public Map<Byte, Piece> getPieceMap(){
-    // final Map<Byte, Piece> combinedMap = new HashMap<Byte, Piece>();
-    // combinedMap.putAll(this.whitePieces);
-    // combinedMap.putAll(this.blackPieces);
-    // return combinedMap;
-    // }
+    public long getBlackPiecesMask() {
+        return this.blackPiecesMask;
+    }
 
-    public Map<Byte, Piece> getPieces(){
-        return whitePieces;
+    public long getWhitePiecesMask() {
+        return this.whitePiecesMask;
     }
 
     public Piece getPiece(final byte position) {
@@ -80,37 +115,31 @@ public class Board {
         return null;
     }
 
-    public void setGameBoard(final long gameBoard) {
-        this.gameBoard = gameBoard;
+    public void setGameBoardMask(final long gameBoard) {
+        this.gameBoardMask = gameBoard;
     }
 
-    public void setWhitePieceBoard(final long whitePieceBoard) {
-        this.whitePieceBoard = whitePieceBoard;
-    }
+    public byte getWhiteKingPosition() {
+		return whiteKingPosition;
+	}
 
-    public void setBlackPieceBoard(final long blackPieceBoard) {
-        this.blackPieceBoard = blackPieceBoard;
-    }
+	public byte getBlackKingPosition() {
+		return blackKingPosition;
+	}
 
-    public long getOpponentLegalMovesBoard(final Alliance alliance) {
-        Collection<Piece> opponentPieces = whitePieces.values();
-        if (alliance == Alliance.WHITE) {
-            opponentPieces = blackPieces.values();
-        }
+	public Map<Byte, Piece> getWhitePieces() {
+		return whitePieces;
+	}
 
-        long opponentLegalMovesBoard = 0L;
-        for (Piece piece : opponentPieces) {
-            opponentLegalMovesBoard |= piece.getLegalMovesMask();
-        }
-
-        return opponentLegalMovesBoard;
-    }
+	public Map<Byte, Piece> getBlackPieces() {
+		return blackPieces;
+	}
 
     @Override
     public String toString() {
         final StringBuilder builder = new StringBuilder();
         for (byte pos = BoardUtils.NUM_POS - 1; pos >= 0; --pos) {
-            if (((1L << pos) & gameBoard) != 0) {
+            if (((1L << pos) & gameBoardMask) != 0) {
                 builder.append(String.format("%3s", this.getPiece(pos).toString()));
             } else {
                 builder.append(String.format("%3s", '.'));
@@ -122,202 +151,16 @@ public class Board {
         return builder.toString();
     }
 
-    public static Board createStandardBoard() {
-        final BoardBuilder builder = new BoardBuilder();
-        // black layout
-        builder.piece(Rook.createPiece((byte) 0, Alliance.WHITE));
-        builder.piece(Knight.createPiece((byte) 1, Alliance.WHITE));
-        builder.piece(Bishop.createPiece((byte) 2, Alliance.WHITE));
-        builder.piece(King.createPiece((byte) 3, Alliance.WHITE));
-        builder.piece(Queen.createPiece((byte) 4, Alliance.WHITE));
-        builder.piece(Bishop.createPiece((byte) 5, Alliance.WHITE));
-        builder.piece(Knight.createPiece((byte) 6, Alliance.WHITE));
-        builder.piece(Rook.createPiece((byte) 7, Alliance.WHITE));
-
-        // white layout
-        builder.piece(Rook.createPiece((byte) 63, Alliance.BLACK));
-        builder.piece(Knight.createPiece((byte) 62, Alliance.BLACK));
-        builder.piece(Bishop.createPiece((byte) 61, Alliance.BLACK));
-        builder.piece(Queen.createPiece((byte) 60, Alliance.BLACK));
-        builder.piece(King.createPiece((byte) 59, Alliance.BLACK));
-        builder.piece(Bishop.createPiece((byte) 58, Alliance.BLACK));
-        builder.piece(Knight.createPiece((byte) 57, Alliance.BLACK));
-        builder.piece(Rook.createPiece((byte) 56, Alliance.BLACK));
-
-        for(byte pos = 8, pos1 = 48; pos < 16 && pos1 < 56; ++pos, ++pos1){
-            builder.piece(Pawn.createPiece((byte) pos, Alliance.WHITE));
-            builder.piece(Pawn.createPiece((byte) pos1, Alliance.BLACK));
-        }
-
-        return builder.build();
-    }
-
-    public static class BoardUtils {
-
-        public static final long[] RANK_MASKS = initRankMasks();
-        public static final long[] FILE_MASKS = initFileMasks();
-
-        public static final int NUM_POS = 64;
-        public static final int BOARD_SIDE_LENGTH = 8;
-
-        private BoardUtils() {
-            throw new AssertionError("Non-Instansiable Class");
-        }
-
-        private static long[] initRankMasks() {
-            final long[] rows = new long[BOARD_SIDE_LENGTH];
-
-            for (int i = 0; i < BOARD_SIDE_LENGTH; ++i) {
-
-                // for first row:
-                // uses -1L (with all active bits)
-                // and uses unsigned right shift operation to first remove
-                // all the active bits on the right except for the last 8 bits
-                //
-                // so, below happens,
-                //
-                // -1L row[0]
-                //
-                // 1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0
-                // 1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0
-                // 1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0
-                // 1 1 1 1 1 1 1 1 -> 0 0 0 0 0 0 0 0
-                // 1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0
-                // 1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0
-                // 1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0
-                // 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
-                //
-                // NOTE: In the above representation the 64 bit long is represented
-                // as a 8x8 grid of bits with most significant bits on the top.
-
-                if (i == 0) {
-                    final byte num_shift = NUM_POS - BOARD_SIDE_LENGTH;
-                    rows[i] = -1L >>> num_shift;
-                    continue;
-                }
-
-                // for all other rows:
-                // use first row and left shift it by (row_number * 8) bits
-                //
-                // so, below converstion happens for the second row:
-                //
-                // row[0] row[1]
-                //
-                // 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-                // 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-                // 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-                // 0 0 0 0 0 0 0 0 -> 0 0 0 0 0 0 0 0
-                // 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-                // 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-                // 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1
-                // 1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0
-
-                rows[i] = rows[0] << (i * BOARD_SIDE_LENGTH);
-            }
-
-            return rows;
-        }
-
-        private static long[] initFileMasks() {
-
-            final long[] columns = new long[BOARD_SIDE_LENGTH];
-
-            for (int i = 0; i < BOARD_SIDE_LENGTH; ++i) {
-
-                // for last column:
-                // uses 1L (with 1 active bits)
-                // and uses left shift operation to first move the 1 active bit
-                // by number of columns (8 bits) and use | operator to add an active least
-                // significant bit, then repeat the same for all the rows
-                //
-                // so, below happens on the first pass,
-                //
-                // 1L column[n]
-                //
-                // 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-                // 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-                // 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-                // 0 0 0 0 0 0 0 0 -> 0 0 0 0 0 0 0 0
-                // 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-                // 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-                // 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1
-                // 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 1
-                //
-                // NOTE: In the above representation the 64 bit long is represented
-                // as a 8x8 grid of bits with most significant bits on the top.
-
-                if (i == 0) {
-                    long column = 1L;
-                    for (int j = 1; j < BOARD_SIDE_LENGTH; ++j) {
-                        column <<= BOARD_SIDE_LENGTH;
-                        column |= 1;
-                    }
-                    columns[0] = column;
-                    continue;
-                }
-
-                // for all other columns:
-                // use first column and left shift it by 1 bits
-                //
-                // so, below converstion happens for the second column:
-                //
-                // column[n] column[n-1]
-                //
-                // 0 0 0 0 0 0 0 1 0 0 0 0 0 0 1 0
-                // 0 0 0 0 0 0 0 1 0 0 0 0 0 0 1 0
-                // 0 0 0 0 0 0 0 1 0 0 0 0 0 0 1 0
-                // 0 0 0 0 0 0 0 1 -> 0 0 0 0 0 0 1 0
-                // 0 0 0 0 0 0 0 1 0 0 0 0 0 0 1 0
-                // 0 0 0 0 0 0 0 1 0 0 0 0 0 0 1 0
-                // 0 0 0 0 0 0 0 1 0 0 0 0 0 0 1 0
-                // 0 0 0 0 0 0 0 1 0 0 0 0 0 0 1 0
-
-                columns[i] = columns[0] << i;
-            }
-
-            return columns;
-        }
-
-        public static boolean isValidRankIndex(final int rank) {
-            return rank >= 0 && rank < BOARD_SIDE_LENGTH;
-        }
-
-        public static boolean isValidFileIndex(final int file) {
-            return file >= 0 && file < BOARD_SIDE_LENGTH;
-        }
-
-        public static int getRankIndex(final int positionIndex) {
-            return positionIndex / 8;
-        }
-
-        public static int getFileIndex(final int positionIndex) {
-            return positionIndex % 8;
-        }
-
-        public static boolean isValidPositionIndex(final int index) {
-            return index >= 0 && index < NUM_POS;
-        }
-
-        public static int getPositionIndex(final int rankIndex, final int fileIndex) {
-            return rankIndex * BOARD_SIDE_LENGTH + (BOARD_SIDE_LENGTH - 1 - fileIndex);
-        }
-
-        public static int getKingSideRookFileIndex() {
-            return 0;
-        }
-
-        public static int getQueenSideRookFileIndex() {
-            return BOARD_SIDE_LENGTH - 1;
-        }
-    }
-
     public static class BoardBuilder {
 
         long gameBoard;
         long whitePieceBoard;
         long blackPieceBoard;
+        byte whiteKingPosition;
+        byte blackKingPosition;
         Map<Byte, Piece> whitePieces;
         Map<Byte, Piece> blackPieces;
+        List<Set<Byte>> attackMatrix;
         Pawn enPassantPawn;
 
         public Board build() {
@@ -325,6 +168,9 @@ public class Board {
         }
 
         public BoardBuilder piece(final Piece piece) {
+            if (piece == null) {
+               throw new RuntimeException("piece is null");
+            }
             final byte position = piece.getPiecePosition();
             final long positionBoard = (1L << position);
 
@@ -332,14 +178,20 @@ public class Board {
                 throw new RuntimeException(position + " already has a piece!!");
             }
 
-            if (piece.getPieceAlliance() == Alliance.WHITE) {
+            if (piece.getPieceAlliance().isWhite()) {
                 this.whitePieces.put(position, piece);
                 this.whitePieceBoard |= positionBoard;
+                if(piece.getPieceType().isKing()){
+                    this.whiteKingPosition = position;
+                }
             }
 
-            if (piece.getPieceAlliance() == Alliance.BLACK) {
+            if (!piece.getPieceAlliance().isWhite()) {
                 this.blackPieces.put(position, piece);
                 this.blackPieceBoard |= positionBoard;
+                if(piece.getPieceType().isKing()){
+                    this.blackKingPosition = position;
+                }
             }
 
             this.gameBoard |= positionBoard;
@@ -351,8 +203,14 @@ public class Board {
             this.gameBoard = 0L;
             this.whitePieceBoard = 0L;
             this.blackPieceBoard = 0L;
+            this.whiteKingPosition = 64;
+            this.blackKingPosition = 64;
             this.whitePieces = new HashMap<Byte, Piece>();
             this.blackPieces = new HashMap<Byte, Piece>();
+            this.attackMatrix = new ArrayList<Set<Byte>>(BoardUtils.NUM_POS);
+            for (int pos = 0; pos < BoardUtils.NUM_POS; ++pos) {
+                attackMatrix.add(new HashSet<Byte>());
+            }
             this.enPassantPawn = null;
         }
 
@@ -360,4 +218,5 @@ public class Board {
             this.enPassantPawn = movedPawn;
         }
     }
+
 }

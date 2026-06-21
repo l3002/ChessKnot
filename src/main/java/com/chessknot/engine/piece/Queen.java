@@ -1,64 +1,45 @@
 package com.chessknot.engine.piece;
 
 import com.chessknot.engine.board.Board;
-import com.chessknot.engine.board.Board.BoardUtils;
+import com.chessknot.engine.board.BoardUtils;
 
 public class Queen extends Piece {
 
-    private static final long[] MOVE_CACHE = MAKE_MOVE_CACHE();
-
-	public Queen(final byte readOnlyMetadata, final byte writeableMetadata) {
-		super(readOnlyMetadata, writeableMetadata);
-	}
-    
-    public static Queen createPiece(final byte positionIndex, final Alliance alliance, final boolean isFirstMove) {
-        byte readOnlyMetadata = (byte) ((PieceType.QUEEN.ordinal() << 1) | alliance.ordinal());
-        byte writeableMetadata = (byte) ((positionIndex << 1) | (isFirstMove ? 1 : 0));
-        return new Queen(readOnlyMetadata, writeableMetadata);
+    Queen(final byte readOnlyMetadata, final byte writeableMetadata) {
+        super(readOnlyMetadata, writeableMetadata);
     }
 
-    public static Queen createPiece(final byte positionIndex, final Alliance alliance) {
-        byte readOnlyMetadata = (byte) ((PieceType.QUEEN.ordinal() << 1) | alliance.ordinal());
-        byte writeableMetadata = (byte) ((positionIndex << 1) | 1);
-        return new Queen(readOnlyMetadata, writeableMetadata);
-    }
-
-
-	private static final long[] MAKE_MOVE_CACHE() {
-        final long[] moveCache = new long[BoardUtils.NUM_POS];
-
-        for (byte pos = 0; pos < BoardUtils.NUM_POS; ++pos) {
-            moveCache[pos] = Rook.MOVE_CACHE[pos] | Bishop.MOVE_CACHE[pos];
-        }
-
-        return moveCache;
-    }
-
-    @Override
-    public void updateLegalMovesAndCaptures(final Board board) {
+	@Override
+    public void initialUpdateForPossibleMovesMask(final Board board) {
 
         final byte position = this.getPiecePosition();
         final Alliance alliance = this.getPieceAlliance();
-        long legalMovesBoard = MOVE_CACHE[position];
-        final long gameBoard = board.getGameBoard();
+        final int rankIndex = BoardUtils.getRankIndex(position);
+        final int fileIndex = BoardUtils.getFileIndex(position);
+        long legalMovesBoard = (BoardUtils.FORWARD_DIAGONALS[BoardUtils.getForwardDiagonalIndex(position)]
+                | BoardUtils.BACKWARD_DIAGONALS[BoardUtils.getBackwardDiagonalIndex(position)]
+                | BoardUtils.RANK_MASKS[rankIndex] | BoardUtils.FILE_MASKS[fileIndex]) ^ (1L << position);
+        final long gameBoard = board.getGameBoardMask();
 
         if ((legalMovesBoard & gameBoard) == 0) {
-            this.legalMovesMask = legalMovesBoard;
+            this.possibleMovesMask = legalMovesBoard;
             return;
         }
 
-        final long opponentPieceBoard = alliance.isWhite() ? board.getBlackPieceBoard()
-                : board.getWhitePieceBoard();
-        final long alliancePieceBoard = alliance.isWhite() ? board.getWhitePieceBoard()
-                : board.getBlackPieceBoard();
+        legalMovesBoard = Rook.processForCapturesAndBlocked(position, legalMovesBoard, alliance, board);
+        legalMovesBoard = Bishop.processForCapturesAndBlocked(position, legalMovesBoard, alliance, board);
 
-        legalMovesBoard = processForRookCapturesAndBlockage(position, legalMovesBoard,
-                opponentPieceBoard, alliancePieceBoard);
-        legalMovesBoard = processForBishopCapturesAndBlockage(position, legalMovesBoard,
-                opponentPieceBoard, alliancePieceBoard);
-
-        this.legalMovesMask = legalMovesBoard;
+        this.possibleMovesMask = legalMovesBoard;
     }
+    
+    @Override
+	public void updateAttackMatrixAndMask(Board board) {
+        final byte position = this.getPiecePosition();
+        final Alliance alliance = this.getPieceAlliance();
+
+        this.attacksMask = Rook.createAttackMaskAndUpdateAttackMatrix(position, alliance, this.possibleMovesMask, board);
+        this.attacksMask |= Bishop.createAttackMaskAndUpdateAttackMatrix(position, alliance, possibleMovesMask, board);
+	}
 
     @Override
     public String toString() {
