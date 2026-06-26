@@ -1,4 +1,4 @@
-package com.chessknot.engine.board;
+package com.chessknot.core.board;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -6,23 +6,31 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
-import com.chessknot.engine.piece.Pawn;
-import com.chessknot.engine.piece.Piece;
+import com.chessknot.core.piece.Pawn;
+import com.chessknot.core.piece.Piece;
 
 public class Board {
 
+    private final UUID boardUUID;
     private long gameBoardMask;
     private long whitePiecesMask;
     private long blackPiecesMask;
     private byte whiteKingPosition;
-	private byte blackKingPosition;
-    private final Map<Byte, Piece> whitePieces;
+    private byte blackKingPosition;
+    private boolean isWhiteChecked = false;
+    private boolean isBlackChecked = false;
+    private boolean isWhiteCheckmated = false;
+	private boolean isBlackCheckmated = false;
+	private final Map<Byte, Piece> whitePieces;
     private final Map<Byte, Piece> blackPieces;
     private final List<Set<Byte>> attackMatrix;
+    private final List<Set<Byte>> protectionMatrix;
     private Pawn enPassantPawn;
 
     private Board(final BoardBuilder builder) {
+        this.boardUUID = UUID.randomUUID();
         this.gameBoardMask = builder.gameBoard;
         this.whitePiecesMask = builder.whitePieceBoard;
         this.blackPiecesMask = builder.blackPieceBoard;
@@ -31,16 +39,34 @@ public class Board {
         this.whitePieces = builder.whitePieces;
         this.blackPieces = builder.blackPieces;
         this.attackMatrix = builder.attackMatrix;
+        this.protectionMatrix = builder.protectionMatrix;
         this.enPassantPawn = builder.enPassantPawn;
         this.whitePieces.values().stream().forEach((p) -> p.initialUpdateForPossibleMovesMask(this));
         this.blackPieces.values().stream().forEach((p) -> p.initialUpdateForPossibleMovesMask(this));
-        this.whitePieces.values().stream().forEach((p) -> p.updateAttackMatrixAndMask(this));
-        this.blackPieces.values().stream().forEach((p) -> p.updateAttackMatrixAndMask(this));
-        // List copy is required as pieces are concurrently removed from 
-        List<Piece> whitePieces = List.copyOf(this.whitePieces.values());
-        whitePieces.stream().forEach((p) -> p.updateLeavesOnCheckMovesMask(this));
-        List<Piece> blackPieces = List.copyOf(this.blackPieces.values());
-        blackPieces.stream().forEach((p) -> p.updateLeavesOnCheckMovesMask(this));
+        this.whitePieces.values().stream().forEach((p) -> p.updateLeavesOnCheckMovesMask(this));
+        this.blackPieces.values().stream().forEach((p) -> p.updateLeavesOnCheckMovesMask(this));
+        if (!attackMatrix.get(this.whiteKingPosition).isEmpty()) {
+            this.isWhiteChecked = true;
+        }
+        if (!attackMatrix.get(this.blackKingPosition).isEmpty()) {
+            this.isBlackChecked = true;
+        }
+        if (this.isWhiteChecked && this.isBlackChecked) {
+            // TODO: need to handle this
+            throw new RuntimeException("Invalid Board");
+        }
+
+        this.isWhiteCheckmated = (this.whitePieces.values().stream().mapToLong((p) -> {
+            return p.getActualPossibleMovesMask();
+        }).reduce((x, y) -> {
+            return x | y;
+        })).orElseThrow(() -> new RuntimeException("invalid result")) == 0L;
+        
+        this.isBlackCheckmated = (this.blackPieces.values().stream().mapToLong((p) -> {
+            return p.getActualPossibleMovesMask();
+        }).reduce((x, y) -> {
+            return x | y;
+        })).orElseThrow(() -> new RuntimeException("invalid result")) == 0L;
     }
 
     public void updateAttacks(final int attackedPiecePosition, final byte attackingPiecePosition) {
@@ -48,47 +74,37 @@ public class Board {
         attackingPositionsList.add(attackingPiecePosition);
     }
 
-    public Set<Byte> getAttackingPositions(int attackedPosition) {
+    public void updateProtector(final int protectedPiecePosition, final byte protectingPiecePosition) {
+        Set<Byte> protectingPositionsList = this.protectionMatrix.get(protectedPiecePosition);
+        protectingPositionsList.add(protectingPiecePosition);
+    }
+
+    public boolean isWhiteChecked() {
+        return isWhiteChecked;
+    }
+
+    public boolean isBlackChecked() {
+        return isBlackChecked;
+    }
+
+    public boolean isWhiteCheckmated() {
+		return isWhiteCheckmated;
+	}
+
+    public boolean isBlackCheckmated() {
+		return isBlackCheckmated;
+	}
+
+    public Set<Byte> getAttackersPositions(int attackedPosition) {
         return attackMatrix.get(attackedPosition);
+    }
+
+    public Set<Byte> getProtectorsPositions(int protectedPosition) {
+        return protectionMatrix.get(protectedPosition);
     }
 
     public Pawn getEnPassantPawn() {
         return this.enPassantPawn;
-    }
-
-    public Piece popPiece(final byte position) {
-        Piece piece;
-        if((piece = this.whitePieces.get(position)) != null){
-            this.whitePieces.remove(position);
-            this.whitePiecesMask ^= (1L << position);
-            this.gameBoardMask ^= (1L << position);
-            return piece;
-        }
-        if((piece = this.blackPieces.get(position)) != null){
-            this.blackPieces.remove(position);
-            this.blackPiecesMask ^= (1L << position);
-            this.gameBoardMask ^= (1L << position);
-            return piece;
-        }
-
-        // TODO: might need to handle this
-        throw new RuntimeException("Piece not present on board");
-    }
-
-    public void placePiece(final Piece piece) {
-        final byte piecePosition = piece.getPiecePosition();
-        if(((1L << piecePosition) & this.gameBoardMask) != 0){
-            throw new RuntimeException(piecePosition + " already has a piece");
-        }
-        this.gameBoardMask |= (1L << piecePosition);
-        if(piece.getPieceAlliance().isWhite()){
-            this.whitePieces.put(piecePosition, piece);
-            whitePiecesMask |= (1L << piecePosition);
-        }
-        else{
-            this.blackPieces.put(piecePosition, piece);
-            blackPiecesMask |= (1L << piecePosition);
-        }
     }
 
     public long getGameBoardMask() {
@@ -118,25 +134,21 @@ public class Board {
         return null;
     }
 
-    public void setGameBoardMask(final long gameBoard) {
-        this.gameBoardMask = gameBoard;
+    public byte getWhiteKingPosition() {
+        return whiteKingPosition;
     }
 
-    public byte getWhiteKingPosition() {
-		return whiteKingPosition;
-	}
+    public byte getBlackKingPosition() {
+        return blackKingPosition;
+    }
 
-	public byte getBlackKingPosition() {
-		return blackKingPosition;
-	}
+    public Map<Byte, Piece> getWhitePieces() {
+        return whitePieces;
+    }
 
-	public Map<Byte, Piece> getWhitePieces() {
-		return whitePieces;
-	}
-
-	public Map<Byte, Piece> getBlackPieces() {
-		return blackPieces;
-	}
+    public Map<Byte, Piece> getBlackPieces() {
+        return blackPieces;
+    }
 
     @Override
     public String toString() {
@@ -164,6 +176,7 @@ public class Board {
         Map<Byte, Piece> whitePieces;
         Map<Byte, Piece> blackPieces;
         List<Set<Byte>> attackMatrix;
+        List<Set<Byte>> protectionMatrix;
         Pawn enPassantPawn;
 
         public Board build() {
@@ -172,7 +185,7 @@ public class Board {
 
         public BoardBuilder piece(final Piece piece) {
             if (piece == null) {
-               throw new RuntimeException("piece is null");
+                throw new RuntimeException("piece is null");
             }
             final byte position = piece.getPiecePosition();
             final long positionBoard = (1L << position);
@@ -184,7 +197,7 @@ public class Board {
             if (piece.getPieceAlliance().isWhite()) {
                 this.whitePieces.put(position, piece);
                 this.whitePieceBoard |= positionBoard;
-                if(piece.getPieceType().isKing()){
+                if (piece.getPieceType().isKing()) {
                     this.whiteKingPosition = position;
                 }
             }
@@ -192,7 +205,7 @@ public class Board {
             if (!piece.getPieceAlliance().isWhite()) {
                 this.blackPieces.put(position, piece);
                 this.blackPieceBoard |= positionBoard;
-                if(piece.getPieceType().isKing()){
+                if (piece.getPieceType().isKing()) {
                     this.blackKingPosition = position;
                 }
             }
@@ -211,8 +224,10 @@ public class Board {
             this.whitePieces = new HashMap<Byte, Piece>();
             this.blackPieces = new HashMap<Byte, Piece>();
             this.attackMatrix = new ArrayList<Set<Byte>>(BoardUtils.NUM_POS);
+            this.protectionMatrix = new ArrayList<Set<Byte>>(BoardUtils.NUM_POS);
             for (int pos = 0; pos < BoardUtils.NUM_POS; ++pos) {
-                attackMatrix.add(new HashSet<Byte>());
+                this.attackMatrix.add(new HashSet<Byte>());
+                this.protectionMatrix.add(new HashSet<Byte>());
             }
             this.enPassantPawn = null;
         }

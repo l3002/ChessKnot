@@ -1,7 +1,11 @@
-package com.chessknot.engine.piece;
+package com.chessknot.core.piece;
 
-import com.chessknot.engine.board.Board;
-import com.chessknot.engine.board.BoardUtils;
+import java.util.ArrayList;
+import java.util.List;
+
+import com.chessknot.core.board.Board;
+import com.chessknot.core.board.BoardUtils;
+import com.chessknot.core.move.Move;
 
 public class Rook extends Piece {
 
@@ -16,15 +20,16 @@ public class Rook extends Piece {
         final Alliance alliance = this.getPieceAlliance();
         final int rankIndex = BoardUtils.getRankIndex(position);
         final int fileIndex = BoardUtils.getFileIndex(position);
-        long possibleMovesMask = (BoardUtils.RANK_MASKS[rankIndex] | BoardUtils.FILE_MASKS[fileIndex]) ^ (1L << position);
+        long possibleMovesMask = (BoardUtils.RANK_MASKS[rankIndex] | BoardUtils.FILE_MASKS[fileIndex])
+                ^ (1L << position);
         final long gameBoard = board.getGameBoardMask();
-
+        
         if ((possibleMovesMask & gameBoard) == 0) {
-            this.possibleMovesMask = possibleMovesMask;
+            this.initialPossibleMovesMask = possibleMovesMask;
             return;
         }
 
-        this.possibleMovesMask = processForCapturesAndBlocked(position, possibleMovesMask, alliance, board);
+        this.initialPossibleMovesMask = processForCapturesAndBlocked(position, possibleMovesMask, alliance, board);
 
     }
 
@@ -46,10 +51,14 @@ public class Rook extends Piece {
                     .isValidFileIndex(fileIndex); fileIndex += direction) {
                 final long fileMask = BoardUtils.FILE_MASKS[fileIndex];
 
-                if (found || ((possibleMovesMask & alliancePieceMask) & (pieceRankMask & fileMask)) != 0) {
+                if (found) {
                     possibleMovesMask ^= (pieceRankMask & fileMask);
+                } else if (((possibleMovesMask & alliancePieceMask) & (pieceRankMask & fileMask)) != 0) {
+                    possibleMovesMask ^= (pieceRankMask & fileMask);
+                    board.updateProtector(BoardUtils.getPositionIndex(pieceRankIndex, fileIndex), position);
                     found = true;
                 } else if (((possibleMovesMask & opponentPieceMask) & (pieceRankMask & fileMask)) != 0) {
+                    board.updateAttacks(BoardUtils.getPositionIndex(pieceRankIndex, fileIndex), position);
                     found = true;
                 }
             }
@@ -59,10 +68,14 @@ public class Rook extends Piece {
                     .isValidRankIndex(rankIndex); rankIndex += direction) {
                 final long rankMask = BoardUtils.RANK_MASKS[rankIndex];
 
-                if (found || ((possibleMovesMask & alliancePieceMask) & (pieceFileMask & rankMask)) != 0) {
+                if (found) {
                     possibleMovesMask ^= (pieceFileMask & rankMask);
+                } else if (((possibleMovesMask & alliancePieceMask) & (pieceFileMask & rankMask)) != 0) {
+                    possibleMovesMask ^= (pieceFileMask & rankMask);
+                    board.updateProtector(BoardUtils.getPositionIndex(rankIndex, pieceFileIndex), position);
                     found = true;
                 } else if (((possibleMovesMask & opponentPieceMask) & (pieceFileMask & rankMask)) != 0) {
+                    board.updateAttacks(BoardUtils.getPositionIndex(rankIndex, pieceFileIndex), position);
                     found = true;
                 }
             }
@@ -71,60 +84,53 @@ public class Rook extends Piece {
         return possibleMovesMask;
     }
 
-    public void updateAttackMatrixAndMask(final Board board) {
+    @Override
+    public final List<Move> getLegalMovesList(final Board board) {
 
         final byte position = this.getPiecePosition();
         final Alliance alliance = this.getPieceAlliance();
-
-        this.attacksMask = createAttackMaskAndUpdateAttackMatrix(position, alliance, this.possibleMovesMask, board);
-    }
-
-    // This is a helper method which is later used while updating queen attack matrix as well.
-    public static final long createAttackMaskAndUpdateAttackMatrix(final byte position, final Alliance alliance,
-            final long possibleMovesMask, final Board board) {
-
-        final int pieceRankIndex = BoardUtils.getRankIndex(position);
-        final int pieceFileIndex = BoardUtils.getFileIndex(position);
-        final long pieceRankMask = BoardUtils.RANK_MASKS[pieceRankIndex];
-        final long pieceFileMask = BoardUtils.FILE_MASKS[pieceFileIndex];
         final long opponentPieceMask = alliance.isWhite() ? board.getBlackPiecesMask()
                 : board.getWhitePiecesMask();
 
-        long attacksMask = possibleMovesMask & opponentPieceMask;
+        return createLegalMovesList(board, position, alliance, this.actualPossibleMovesMask, opponentPieceMask);
+    }
 
-        for (int fileBegin = 0; fileBegin < pieceFileIndex; fileBegin++) {
-            long fileBeginMask = BoardUtils.FILE_MASKS[fileBegin];
-            if ((fileBeginMask & pieceRankMask & possibleMovesMask & opponentPieceMask) != 0) {
-                board.updateAttacks(BoardUtils.getPositionIndex(pieceRankIndex, fileBegin), position);
-                break;
+    public static final List<Move> createLegalMovesList(final Board board, final byte position, final Alliance alliance,
+            final long actualPossibleMovesMask, final long attacksMask) {
+
+        final int pieceRankIndex = BoardUtils.getRankIndex(position);
+        final int pieceFileIndex = BoardUtils.getFileIndex(position);
+        List<Move> legalMovesList = new ArrayList<Move>();
+
+        for (byte fileBegin = 0; fileBegin < pieceFileIndex; fileBegin++) {
+            Move move = createMove(position, pieceRankIndex, fileBegin, board, actualPossibleMovesMask, attacksMask);
+            if (move != null) {
+                legalMovesList.add(move);
             }
         }
 
         for (int rankBegin = 0; rankBegin < pieceRankIndex; rankBegin++) {
-            long rankBeginMask = BoardUtils.RANK_MASKS[rankBegin];
-            if ((rankBeginMask & pieceFileMask & possibleMovesMask & opponentPieceMask) != 0) {
-                board.updateAttacks(BoardUtils.getPositionIndex(rankBegin, pieceFileIndex), position);
-                break;
+            Move move = createMove(position, rankBegin, pieceFileIndex, board, actualPossibleMovesMask, attacksMask);
+            if (move != null) {
+                legalMovesList.add(move);
             }
         }
 
         for (int rankEnd = BoardUtils.BOARD_SIDE_LENGTH - 1; rankEnd > pieceRankIndex; rankEnd--) {
-            long rankEndMask = BoardUtils.RANK_MASKS[rankEnd];
-            if ((rankEndMask & pieceFileMask & possibleMovesMask & opponentPieceMask) != 0) {
-                board.updateAttacks(BoardUtils.getPositionIndex(rankEnd, pieceFileIndex), position);
-                break;
+            Move move = createMove(position, rankEnd, pieceFileIndex, board, actualPossibleMovesMask, attacksMask);
+            if (move != null) {
+                legalMovesList.add(move);
             }
         }
 
         for (int fileEnd = BoardUtils.BOARD_SIDE_LENGTH - 1; fileEnd > pieceFileIndex; fileEnd--) {
-            long fileEndMask = BoardUtils.FILE_MASKS[fileEnd];
-            if ((fileEndMask & pieceRankMask & possibleMovesMask & opponentPieceMask) != 0) {
-                board.updateAttacks(BoardUtils.getPositionIndex(pieceRankIndex, fileEnd), position);
-                break;
+            Move move = createMove(position, pieceRankIndex, fileEnd, board, actualPossibleMovesMask, attacksMask);
+            if (move != null) {
+                legalMovesList.add(move);
             }
         }
 
-        return attacksMask;
+        return legalMovesList;
     }
 
     @Override

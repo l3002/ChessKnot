@@ -1,4 +1,4 @@
-package com.chessknot.engine.piece;
+package com.chessknot.core.piece;
 
 public enum PieceType {
 

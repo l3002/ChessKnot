@@ -1,6 +1,6 @@
-package com.chessknot.engine.piece;
+package com.chessknot.core.piece;
 
-import com.chessknot.engine.board.BoardUtils;
+import com.chessknot.core.board.BoardUtils;
 
 public enum Alliance {
     WHITE {

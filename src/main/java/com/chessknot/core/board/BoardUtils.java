@@ -1,9 +1,9 @@
-package com.chessknot.engine.board;
+package com.chessknot.core.board;
 
-import com.chessknot.engine.board.Board.BoardBuilder;
-import com.chessknot.engine.piece.Alliance;
-import com.chessknot.engine.piece.Piece;
-import com.chessknot.engine.piece.PieceType;
+import com.chessknot.core.board.Board.BoardBuilder;
+import com.chessknot.core.piece.Alliance;
+import com.chessknot.core.piece.Piece;
+import com.chessknot.core.piece.PieceType;
 
 public class BoardUtils {
 
@@ -137,7 +137,7 @@ public class BoardUtils {
     private static long createDiagonalMask(final int position, final int direction){
         final int rankIndex = BoardUtils.getRankIndex(position);
         final int fileIndex = BoardUtils.getFileIndex(position);
-        long legalMoves = 1L << position;
+        long possibleMovesMask = 1L << position;
         for (int checkRank = (int) (rankIndex + 1),
                 checkFile = (int) (fileIndex + direction);
 
@@ -146,23 +146,23 @@ public class BoardUtils {
                 checkRank += 1, checkFile += direction) {
             final long rank = BoardUtils.RANK_MASKS[checkRank];
             final long file = BoardUtils.FILE_MASKS[checkFile];
-            legalMoves |= rank & file;
+            possibleMovesMask |= rank & file;
         }
 
-        return legalMoves;
+        return possibleMovesMask;
     }
 
     private static long[] initBackwardDiagonals(){
 
         final long[] backDiagonals = new long[2 * BOARD_SIDE_LENGTH - 1];
         for(int pos = BOARD_SIDE_LENGTH - 1; pos >= 0; --pos){
-            long legalMoves = createDiagonalMask(pos, 1);
-            backDiagonals[BOARD_SIDE_LENGTH - 1 - pos] = legalMoves;
+            long possibleMovesMask = createDiagonalMask(pos, 1);
+            backDiagonals[BOARD_SIDE_LENGTH - 1 - pos] = possibleMovesMask;
         }
 
         for(int pos = BOARD_SIDE_LENGTH; pos < BOARD_SIDE_LENGTH * BOARD_SIDE_LENGTH; pos += BOARD_SIDE_LENGTH){
-            long legalMoves = createDiagonalMask(pos, 1);
-            backDiagonals[BOARD_SIDE_LENGTH - 1 + pos/BOARD_SIDE_LENGTH] = legalMoves;
+            long possibleMovesMask = createDiagonalMask(pos, 1);
+            backDiagonals[BOARD_SIDE_LENGTH - 1 + pos/BOARD_SIDE_LENGTH] = possibleMovesMask;
         }
         return backDiagonals;
     }
@@ -171,13 +171,13 @@ public class BoardUtils {
 
         final long[] forwardDiagonals = new long[2 * BOARD_SIDE_LENGTH - 1];
         for(int pos = 0; pos < BOARD_SIDE_LENGTH; ++pos){
-            long legalMoves = createDiagonalMask(pos, -1);
-            forwardDiagonals[pos] = legalMoves;
+            long possibleMovesMask = createDiagonalMask(pos, -1);
+            forwardDiagonals[pos] = possibleMovesMask;
         }
 
         for(int pos = 2 * BOARD_SIDE_LENGTH - 1; pos < BOARD_SIDE_LENGTH * BOARD_SIDE_LENGTH; pos += BOARD_SIDE_LENGTH){
-            long legalMoves = createDiagonalMask(pos, -1);
-            forwardDiagonals[BOARD_SIDE_LENGTH - 1 + pos/BOARD_SIDE_LENGTH] = legalMoves;
+            long possibleMovesMask = createDiagonalMask(pos, -1);
+            forwardDiagonals[BOARD_SIDE_LENGTH - 1 + pos/BOARD_SIDE_LENGTH] = possibleMovesMask;
         }
 
         return forwardDiagonals;

@@ -1,7 +1,11 @@
-package com.chessknot.engine.piece;
+package com.chessknot.core.piece;
 
-import com.chessknot.engine.board.Board;
-import com.chessknot.engine.board.BoardUtils;
+import java.util.ArrayList;
+import java.util.List;
+
+import com.chessknot.core.board.Board;
+import com.chessknot.core.board.BoardUtils;
+import com.chessknot.core.move.Move;
 
 public class Pawn extends Piece {
 
@@ -26,6 +30,8 @@ public class Pawn extends Piece {
         final long gameBoardMask = board.getGameBoardMask();
         final long opponentPieceMask = alliance.isWhite() ? board.getBlackPiecesMask()
                 : board.getWhitePiecesMask();
+        final long alliancePieceMask = alliance.isWhite() ? board.getWhitePiecesMask()
+                : board.getBlackPiecesMask();
 
         boolean isBlocked = false;
         if ((possibleMovesMask & gameBoardMask) != 0) {
@@ -48,7 +54,11 @@ public class Pawn extends Piece {
             final long rank = BoardUtils.RANK_MASKS[rankIndex + direction];
             final long file = BoardUtils.FILE_MASKS[fileIndex + 1];
             if ((opponentPieceMask & rank & file) != 0) {
+                board.updateAttacks(BoardUtils.getPositionIndex(rankIndex + direction, fileIndex + 1), position);
                 possibleMovesMask |= rank & file;
+            }
+            if ((alliancePieceMask & rank & file) != 0) {
+                board.updateProtector(BoardUtils.getPositionIndex(rankIndex + direction, fileIndex + 1), position);
             }
         }
         if (BoardUtils.isValidFileIndex((byte) (fileIndex - 1))
@@ -56,7 +66,11 @@ public class Pawn extends Piece {
             final long rank = BoardUtils.RANK_MASKS[rankIndex + direction];
             final long file = BoardUtils.FILE_MASKS[fileIndex - 1];
             if ((opponentPieceMask & rank & file) != 0) {
+                board.updateAttacks(BoardUtils.getPositionIndex(rankIndex + direction, fileIndex - 1), position);
                 possibleMovesMask |= rank & file;
+            }
+            if ((alliancePieceMask & rank & file) != 0) {
+                board.updateProtector(BoardUtils.getPositionIndex(rankIndex + direction, fileIndex - 1), position);
             }
         }
 
@@ -68,41 +82,55 @@ public class Pawn extends Piece {
                 BoardUtils.isValidRankIndex((byte) (rankIndex + direction))) {
             final long enPassantPawnFileMask = BoardUtils.FILE_MASKS[BoardUtils
                     .getFileIndex(enPassantPawn.getPiecePosition())];
+            board.updateAttacks(enPassantPawn.getPiecePosition(), position);
             possibleMovesMask |= enPassantPawnFileMask & (BoardUtils.RANK_MASKS[rankIndex + direction]);
         }
 
-        this.possibleMovesMask = possibleMovesMask;
+        this.initialPossibleMovesMask = possibleMovesMask;
     }
 
     @Override
-    public void updateAttackMatrixAndMask(Board board) {
+    public final List<Move> getLegalMovesList(Board board) {
 
         final byte position = this.getPiecePosition();
         final int rankIndex = BoardUtils.getRankIndex(position);
         final int fileIndex = BoardUtils.getFileIndex(position);
         final Alliance alliance = this.getPieceAlliance();
         final byte direction = alliance.getPawnDirection();
-
+        final List<Move> legalMovesList = new ArrayList<Move>();
         final long opponentPieceMask = alliance.isWhite() ? board.getBlackPiecesMask()
                 : board.getWhitePiecesMask();
+        
+        if (BoardUtils.isValidRankIndex(rankIndex + 1 * direction)) {
+            Move move = createMove(position, rankIndex + 1 * direction, fileIndex, board, actualPossibleMovesMask, opponentPieceMask);
+            if(move != null){
+                legalMovesList.add(move);
+            }
+        }
 
-        this.attacksMask = possibleMovesMask & opponentPieceMask;
+        // Add Pawn Jump for first move, if applicable
+        if (BoardUtils.isValidRankIndex((byte) (rankIndex + 2 * direction))) {
+            Move move = createMove(position, rankIndex + 2 * direction, fileIndex, board, actualPossibleMovesMask, opponentPieceMask);
+            if(move != null){
+                legalMovesList.add(move);
+            }
+        }
 
         // Add piece capture moves, if appicable
         if (BoardUtils.isValidFileIndex((byte) (fileIndex + 1))
                 && BoardUtils.isValidRankIndex((byte) (rankIndex + direction))) {
-            final long rank = BoardUtils.RANK_MASKS[rankIndex + direction];
-            final long file = BoardUtils.FILE_MASKS[fileIndex + 1];
-            if ((opponentPieceMask & rank & file) != 0) {
-                board.updateAttacks(BoardUtils.getPositionIndex(rankIndex + direction, fileIndex + 1), position);
+            Move move = createMove(position, rankIndex + direction, fileIndex + 1, board, actualPossibleMovesMask,
+                    opponentPieceMask);
+            if (move != null) {
+                legalMovesList.add(move);
             }
         }
         if (BoardUtils.isValidFileIndex((byte) (fileIndex - 1))
                 && BoardUtils.isValidRankIndex((byte) (rankIndex + direction))) {
-            final long rank = BoardUtils.RANK_MASKS[rankIndex + direction];
-            final long file = BoardUtils.FILE_MASKS[fileIndex - 1];
-            if ((opponentPieceMask & rank & file) != 0) {
-                board.updateAttacks(BoardUtils.getPositionIndex(rankIndex + direction, fileIndex - 1), position);
+            Move move = createMove(position, rankIndex + direction, fileIndex - 1, board, actualPossibleMovesMask,
+                    opponentPieceMask);
+            if (move != null) {
+                legalMovesList.add(move);
             }
         }
 
@@ -112,9 +140,14 @@ public class Pawn extends Piece {
                 BoardUtils.getRankIndex(enPassantPawn.getPiecePosition()) == rankIndex &&
                 Math.abs(BoardUtils.getFileIndex(enPassantPawn.getPiecePosition()) - fileIndex) == 1 &&
                 BoardUtils.isValidRankIndex((byte) (rankIndex + direction))) {
-            board.updateAttacks(enPassantPawn.getPiecePosition(), position);
+            Move move = createMove(position, rankIndex + direction, fileIndex - 1, board, actualPossibleMovesMask,
+                    opponentPieceMask);
+            if (move != null) {
+                legalMovesList.add(move);
+            }
         }
 
+        return legalMovesList;
     }
 
     @Override
@@ -123,11 +156,6 @@ public class Pawn extends Piece {
             return PieceType.PAWN.toString();
         }
         return PieceType.PAWN.toString().toLowerCase();
-    }
-
-    public Piece getPromotionPiece() {
-        // TODO more to do here: add Optional Piece Promotion
-        return null;
     }
 
 }
