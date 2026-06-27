@@ -56,17 +56,17 @@ public class Board {
             throw new RuntimeException("Invalid Board");
         }
 
-        this.isWhiteCheckmated = (this.whitePieces.values().stream().mapToLong((p) -> {
+        this.isWhiteCheckmated = ((this.whitePieces.values().stream().mapToLong((p) -> {
             return p.getActualPossibleMovesMask();
         }).reduce((x, y) -> {
             return x | y;
-        })).orElseThrow(() -> new RuntimeException("invalid result")) == 0L;
+        })).orElseThrow(() -> new RuntimeException("invalid result")) == 0L) && this.isWhiteChecked;
         
-        this.isBlackCheckmated = (this.blackPieces.values().stream().mapToLong((p) -> {
+        this.isBlackCheckmated = ((this.blackPieces.values().stream().mapToLong((p) -> {
             return p.getActualPossibleMovesMask();
         }).reduce((x, y) -> {
             return x | y;
-        })).orElseThrow(() -> new RuntimeException("invalid result")) == 0L;
+        })).orElseThrow(() -> new RuntimeException("invalid result")) == 0L) && this.isBlackChecked;
     }
 
     public void updateAttacks(final int attackedPiecePosition, final byte attackingPiecePosition) {

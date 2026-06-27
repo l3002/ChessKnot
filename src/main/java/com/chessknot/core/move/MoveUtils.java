@@ -11,7 +11,7 @@ import com.chessknot.core.piece.Piece;
 public class MoveUtils {
     
     private MoveUtils() {
-        throw new AssertionError("Non-Instansiable Class");
+        throw new AssertionError("Non-Instantiable Class");
     }
 
     public static List<Move> getLegalMoveList(final Board board, final Alliance alliance){

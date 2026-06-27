@@ -100,18 +100,20 @@ public class Pawn extends Piece {
         final List<Move> legalMovesList = new ArrayList<Move>();
         final long opponentPieceMask = alliance.isWhite() ? board.getBlackPiecesMask()
                 : board.getWhitePiecesMask();
-        
+
         if (BoardUtils.isValidRankIndex(rankIndex + 1 * direction)) {
-            Move move = createMove(position, rankIndex + 1 * direction, fileIndex, board, actualPossibleMovesMask, opponentPieceMask);
-            if(move != null){
+            Move move = createMove(position, rankIndex + 1 * direction, fileIndex, board, actualPossibleMovesMask,
+                    opponentPieceMask);
+            if (move != null) {
                 legalMovesList.add(move);
             }
         }
 
         // Add Pawn Jump for first move, if applicable
         if (BoardUtils.isValidRankIndex((byte) (rankIndex + 2 * direction))) {
-            Move move = createMove(position, rankIndex + 2 * direction, fileIndex, board, actualPossibleMovesMask, opponentPieceMask);
-            if(move != null){
+            Move move = createMove(position, rankIndex + 2 * direction, fileIndex, board, actualPossibleMovesMask,
+                    opponentPieceMask);
+            if (move != null) {
                 legalMovesList.add(move);
             }
         }
@@ -140,7 +142,10 @@ public class Pawn extends Piece {
                 BoardUtils.getRankIndex(enPassantPawn.getPiecePosition()) == rankIndex &&
                 Math.abs(BoardUtils.getFileIndex(enPassantPawn.getPiecePosition()) - fileIndex) == 1 &&
                 BoardUtils.isValidRankIndex((byte) (rankIndex + direction))) {
-            Move move = createMove(position, rankIndex + direction, fileIndex - 1, board, actualPossibleMovesMask,
+            byte enPassantFileIndex = (byte) (BoardUtils.getFileIndex(enPassantPawn.getPiecePosition()) > fileIndex
+                    ? fileIndex + 1
+                    : fileIndex - 1);
+            Move move = createMove(position, rankIndex + direction, enPassantFileIndex, board, actualPossibleMovesMask,
                     opponentPieceMask);
             if (move != null) {
                 legalMovesList.add(move);

@@ -16,7 +16,7 @@ public class BoardUtils {
     public static final int BOARD_SIDE_LENGTH = 8;
 
     private BoardUtils() {
-        throw new AssertionError("Non-Instansiable Class");
+        throw new AssertionError("Non-Instantiable Class");
     }
 
     private static long[] initRankMasks() {

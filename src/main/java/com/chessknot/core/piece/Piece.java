@@ -245,20 +245,19 @@ public abstract class Piece {
         final long fileMask = BoardUtils.FILE_MASKS[fileIndex];
         if ((rankMask & fileMask & actualPossibleMovesMask & opponentPieceMask) != 0) {
             Piece capturedPiece = board.getPiece(destination);
-            Piece piece = board.getPiece(piecePosition);
-            if (capturedPiece == null && piece.getPieceType() != PieceType.PAWN) {
+            if (capturedPiece == null) {
                 throw new RuntimeException("Attacked Position doesn't have a piece");
-            }
-            if(capturedPiece == null && piece.getPieceType() == PieceType.PAWN){
-                piece = board.getPiece((byte) (destination - BoardUtils.BOARD_SIDE_LENGTH));
-                if(piece == null){
-                    throw new RuntimeException("Attacked Position doesn't have a piece");
-                }
-                return new CaptureMove(piecePosition, destination, PieceType.PAWN, true);
             }
             return new CaptureMove(piecePosition, destination, capturedPiece.getPieceType());
         }
         if ((rankMask & fileMask & actualPossibleMovesMask) != 0) {
+            Piece piece = board.getPiece(piecePosition);
+            if(piece.getPieceType() == PieceType.PAWN && (fileIndex == BoardUtils.getFileIndex(piecePosition) + 1 || fileIndex == BoardUtils.getFileIndex(piecePosition) - 1)){
+                Piece capturedPiece = board.getPiece(destination);
+                if(capturedPiece == null){
+                    return new CaptureMove(piecePosition, destination, PieceType.PAWN, true);
+                }
+            }
             return new Move(piecePosition, destination);
         }
 
